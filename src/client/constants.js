@@ -1,0 +1,1 @@
+export const GRAPHICS_MINIMUM_SIZE = 10;

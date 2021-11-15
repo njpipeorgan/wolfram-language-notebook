@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+		"module": "commonjs"
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./src/client"
+    },
+    {
+      "path": "./src/extension"
+    },
+    {
+      "path": "./src/language"
+    },
+    {
+      "path": "./src/test"
+    }
+  ]
+}
