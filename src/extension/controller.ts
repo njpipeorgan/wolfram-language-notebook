@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
 import stringArgv from "string-argv";
 import * as uuid from "uuid";
+const util = require("util");
 const path = require("path");
 const zmq = require("zeromq");
 import * as child_process from "child_process";
 import { readFileSync } from "fs";
+import { deserializeMarkup } from "./serializer";
 
 interface ExecutionItem {
   id: string,
@@ -25,7 +27,7 @@ class ExecutionQueue {
 
   clear(): void {
     this.queue.map(item => {
-      item.execution.end(false, Date.now());
+      this.end(item.id, false);
     });
     this.queue = [];
   }
@@ -66,6 +68,9 @@ class ExecutionQueue {
   end(id: string, succeed: boolean): void {
     const execution = this.find(id);
     if (execution) {
+      if (!(execution?.started)) {
+        execution.execution.start(Date.now());
+      }
       execution.execution.end(succeed, Date.now());
       this.remove(id);
     }
@@ -308,10 +313,14 @@ export class WLNotebookController {
             if (typeof message.text === "string" && this.getConfig("frontEnd.storeOutputExpressions")) {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
             }
+            const output = new vscode.NotebookCellOutput(outputItems);
+            output.metadata = {
+              cellLabel: message.name
+            };
             if (execution?.hasOutput) {
-              execution.execution.appendOutput([new vscode.NotebookCellOutput(outputItems)]);
+              execution.execution.appendOutput(output);
             } else {
-              execution.execution.replaceOutput([new vscode.NotebookCellOutput(outputItems)]);
+              execution.execution.replaceOutput(output);
               execution.hasOutput = true;
             }
           }
@@ -773,5 +782,63 @@ export class WLNotebookController {
         this.launchKernel();
       }
     }
+  }
+
+  async exportNotebook(uri: vscode.Uri) {
+    let notebook: vscode.NotebookDocument | undefined;
+    this.selectedNotebooks.forEach(current => {
+      console.log(current.uri.toString());
+      if (current.uri.toString() === uri.toString()) {
+        notebook = current;
+      }
+    });
+    console.log(uri.toString(), notebook);
+    if (!notebook) {
+      return;
+    }
+
+    const choice = await vscode.window.showQuickPick([
+      { label: "Wolfram Language Script" },
+      { label: "Wolfram Notebook" }
+    ], {
+      placeHolder: "Export As..."
+    });
+    if (!(choice?.label)) {
+      return;
+    }
+    const cellData: {
+      type: string; // Title, Section, Text, Input, ...
+      label: string; // In[...]:= , Out[...]=
+      text: string;
+    }[] = [];
+    const decoder = new util.TextDecoder();
+    notebook.getCells().forEach(cell => {
+      if (cell.kind === vscode.NotebookCellKind.Markup) {
+        cellData.push(...deserializeMarkup(cell.document.getText()));
+      } else if (cell.kind === vscode.NotebookCellKind.Code) {
+        const executionOrder = cell.executionSummary?.executionOrder;
+        cellData.push({
+          type: "Input",
+          label: executionOrder ? `In[${executionOrder}]:=` : "",
+          text: cell.document.getText()
+        });
+        cell.outputs.forEach(output => {
+          const item = output.items.find(item => item.mime === "text/plain");
+          cellData.push({
+            type: "Output",
+            label: (output?.metadata?.cellLabel || "").toString(),
+            text: decoder.decode(item?.data || new Uint8Array([]))
+          });
+        });
+      }
+    });
+    console.log(cellData);
+    if (choice?.label === "Wolfram Language Script") {
+
+    } else if (choice?.label === "Wolfram Language Script") {
+
+    }
+
+    
   }
 }
