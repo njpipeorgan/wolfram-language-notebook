@@ -464,6 +464,11 @@ export class WLNotebookController {
       console.log("Received the following data from kernel:");
       console.log(`${data.toString()}`);
       const message = data.toString();
+      if (message.startsWith("<ERROR> ")) {
+        // a fatal error
+        vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
+        return;
+      }
       const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
       if (match) {
         // console.log(`match = ${match}`);
@@ -566,7 +571,10 @@ export class WLNotebookController {
               { ...config.get("kernel.configurations"), ...newKernel },
               vscode.ConfigurationTarget.Global
             ).then(() => {
-              this.launchKernel("wolframscript");
+              // config may not be available yet; add a short delay
+              setTimeout(() => {
+                this.launchKernel("wolframscript");
+              }, 200);
             });
           }
           else if (value.label.startsWith("$(debug-start)")) {

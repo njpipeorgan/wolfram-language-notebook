@@ -16,6 +16,9 @@ export function activate(context: vscode.ExtensionContext) {
       vscode.commands.executeCommand('vscode.open', e.uri);
     });
   }));
+  context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.openConfigurations", () => {
+    vscode.commands.executeCommand("workbench.action.openSettings", "wolframLanguageNotebook");
+  }));
   // context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.exportAs", (e: any) => {
   //   const activeUri = e?.notebookEditor?.notebookUri;
   //   console.log(activeUri);

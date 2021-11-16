@@ -34,6 +34,12 @@
         "title": "Export As...",
         "category": "Wolfram Language Notebook",
         "icon": "$(go-to-file)"
+      },
+      {
+        "command": "wolframLanguageNotebook.openConfigurations",
+        "title": "Open Configurations",
+        "category": "Wolfram Language Notebook",
+        "icon": "$(settings)"
       }
     ],
     "menus": {
@@ -41,6 +47,11 @@
         {
           "when": "notebookType == 'wolfram-language-notebook'",
           "command": "wolframLanguageNotebook.exportAs",
+          "group": "navigation"
+        },
+        {
+          "when": "notebookType == 'wolfram-language-notebook'",
+          "command": "wolframLanguageNotebook.openConfigurations",
           "group": "navigation"
         }
       ]

@@ -4,12 +4,21 @@
 (*Import*)
 
 
-Print["Initializing..."];
-Needs["ZeroMQLink`"];
-Needs["CodeParser`"];
-
-
 logWrite[message_]:=WriteString[Streams["stdout"],message];
+logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
+
+
+logWrite["Initializing..."];
+$hasZeroMQ=(Quiet@Needs["ZeroMQLink`"]=!=$Failed);
+$hasCodeParser=(Quiet@Needs["CodeParser`"]=!=$Failed);
+
+
+If[$VersionNumber<12.0,
+  logError["Version 12.0 or higher is required."];Exit[];
+];
+If[!$hasZeroMQ,
+  logError["Failed to load ZeroMQLink` package."];Exit[];
+];
 
 
 (* ::Section:: *)
@@ -519,7 +528,7 @@ handleMessage[]:=Module[{},
   $message=Quiet@ImportString[$messagetext,"RawJSON"];
   logWrite["message received: "<>ToString[$messagetext]<>"\n"];
   If[$message===$Failed,
-    WriteString[Streams["stderr"],"Error occured in parsing the previous message.\n"];
+    logError["Error occured in parsing the previous message.\n$messagetext = "<>ToString[$messagetext]];
     Return[];
   ];
   Module[{packets,uuid,match,syntaxErrors},
@@ -530,14 +539,18 @@ handleMessage[]:=Module[{},
         If[SyntaxQ[$message["text"]],
           packets=List@@Thread[EnterExpressionPacket[#],EnterExpressionPacket]&@
             ToExpression[$message["text"],InputForm,EnterExpressionPacket];,
-          syntaxErrors=Cases[CodeParser`CodeParse[$message["text"]],(ErrorNode|AbstractSyntaxErrorNode|UnterminatedGroupNode|UnterminatedCallNode)[___],Infinity];
-          logWrite["The expression has the following syntax errors: "<>ToString[syntaxErrors]];
+          If[$hasCodeParser,
+            syntaxErrors=Cases[CodeParser`CodeParse[$message["text"]],(ErrorNode|AbstractSyntaxErrorNode|UnterminatedGroupNode|UnterminatedCallNode)[___],Infinity];
+            logWrite["The expression has the following syntax errors: "<>ToString[syntaxErrors]];,
+            syntaxErrors={};
+            logWrite["The expression has syntax errors (CodeParser` is unavailable)"];
+          ];
           queuePush[$outputQueue,<|
             "uuid"->$message["uuid"],
             "type"->TextPacket,
             "packet"->TextPacket[#]
           |>&@StringRiffle[
-            If[Length[syntaxErrors]==0,{"Syntax error"},
+            If[Length[syntaxErrors]==0,{"Syntax error at character "<>ToString@SyntaxLength[$message["text"]]},
               TemplateApply["Syntax error `` at line `` column ``",{ToString[#1],Sequence@@#3[CodeParser`Source][[1]]}]&@@@syntaxErrors
             ],"\n"
           ]];
@@ -691,15 +704,15 @@ handleMainLink[]:=Module[{},
 
 
 $zmqserver=SocketOpen[{"127.0.0.1",zmqPort},{"ZMQ","Pair"}];
-If[Head[$zmqserver]=!=SocketObject,WriteString[Streams["stderr"],"Failed to create a ZeroMQ server."];Exit[];];
-WriteString[Streams["stdout"],TemplateApply["[address tcp://127.0.0.1:``]\n",$zmqserver["DestinationPort"]]];
+If[Head[$zmqserver]=!=SocketObject,logError["Failed to create a ZeroMQ local server on port "<>ToString[zmqPort]<>"."];Exit[];];
+logWrite[TemplateApply["[address tcp://127.0.0.1:``]\n",$zmqserver["DestinationPort"]]];
 
 
 (* make a call of MakeBoxes on an image *)
 MakeBoxes[#]&@Image[{{0}}];
 
 
-Print["Initialization is done."];
+logWrite["Initialization is done."];
 
 
 While[True,
