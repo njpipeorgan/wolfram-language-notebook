@@ -5,11 +5,18 @@
   "publisher": "njpipeorgan",
   "repository": "https://github.com/njpipeorgan/wolfram-language-notebook",
   "version": "0.0.1",
+  "preview": true,
   "engines": {
     "vscode": "^1.62.0"
   },
+  "capabilities": {
+    "virtualWorkspaces": true,
+    "untrustedWorkspaces": {
+      "supported": false
+    }
+  },
   "categories": [
-    "Other"
+    "Notebooks"
   ],
   "activationEvents": [
     "onNotebook:wolfram-language-notebook",
