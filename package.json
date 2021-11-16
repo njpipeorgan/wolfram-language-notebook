@@ -3,6 +3,7 @@
   "displayName": "Wolfram Language Notebook",
   "description": "Notebook support for Wolfram Language in VS Code",
   "publisher": "njpipeorgan",
+  "repository": "https://github.com/njpipeorgan/wolfram-language-notebook",
   "version": "0.0.1",
   "engines": {
     "vscode": "^1.62.0"

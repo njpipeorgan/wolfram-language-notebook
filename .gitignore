@@ -2,4 +2,3 @@ out
 node_modules
 example
 .vscode-test/
-*.vsix
