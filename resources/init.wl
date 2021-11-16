@@ -703,7 +703,7 @@ handleMainLink[]:=Module[{},
 (*Main*)
 
 
-$zmqserver=SocketOpen[{"127.0.0.1",zmqPort},{"ZMQ","Pair"}];
+$zmqserver=SocketOpen[{"127.0.0.1",zmqPort},"ZMQ"];
 If[Head[$zmqserver]=!=SocketObject,logError["Failed to create a ZeroMQ local server on port "<>ToString[zmqPort]<>"."];Exit[];];
 logWrite[TemplateApply["[address tcp://127.0.0.1:``]\n",$zmqserver["DestinationPort"]]];
 
