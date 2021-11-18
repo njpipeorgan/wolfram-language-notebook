@@ -525,7 +525,7 @@ $dangeroussymbols=ToExpression[#,InputForm,HoldComplete]&/@ToExpression@StringCa
 isdangerous[expr_]:=Intersection[Cases[expr,s_Symbol:>HoldComplete[s],{0,Infinity},Heads->True],$dangeroussymbols]=!={};
 
 handleMessage[]:=Module[{},
-  $message=Quiet@ImportString[$messagetext,"RawJSON"];
+  $message=Quiet@Developer`ReadRawJSONString[$messagetext];
   logWrite["message received: "<>ToString[$messagetext]<>"\n"];
   If[$message===$Failed,
     logError["Error occured in parsing the previous message.\n$messagetext = "<>ToString[$messagetext]];
@@ -588,30 +588,34 @@ handleMessage[]:=Module[{},
         Module[{type,text,cellLabel,boxes,notebook,escape},
           escape=(StringReplace[#,{"\""->"\\\"","\\"->"\\\""}]&);
           notebook=Table[
-            type=ToString@Lookup[cell,"type","text"];
+            type=ToString@Lookup[cell,"type","Text"];
             text=Lookup[cell,"text",""];
-            cellLabel=If[Head[#]===String&&StringLength[#]>0,",CellLabel->\""<>escape[#]<>"\"",""]&@cell["prompt"];
-            If[type==="output",
-              If[StringLength[text]>0,
-                boxes=TimeConstrained[
-                  Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"],
-                  getConfig["boxesTimeLimit"]/1000.0,
-                  Quiet@ToString[Quiet@ToExpression[
-                    "Tooltip[Skeleton[1],\"The conversion to the box representation took too much time.\"]",InputForm,ToBoxes
+            cellLabel=If[Head[#]===String&&StringLength[#]>0,",CellLabel->\""<>escape[#]<>"\"",""]&@cell["label"];
+            Switch[type,
+              "Output",
+                If[StringLength[text]>0,
+                  boxes=TimeConstrained[
+                    Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"],
+                    getConfig["boxesTimeLimit"]/1000.0,
+                    Quiet@ToString[Quiet@ToExpression[
+                      "Tooltip[Skeleton[1],\"The conversion to the box representation took too much time.\"]",InputForm,ToBoxes
+                    ],InputForm,CharacterEncoding->"ASCII"];
+                  ];,
+                  boxes=Quiet@ToString[Quiet@ToExpression[
+                    "Tooltip[Skeleton[1],\"The expression was not stored.\"]",InputForm,MakeBoxes
                   ],InputForm,CharacterEncoding->"ASCII"];
-                ];,
-                boxes=Quiet@ToString[Quiet@ToExpression[
-                  "Tooltip[Skeleton[1],\"The expression was not stored.\"]",InputForm,MakeBoxes
-                ],InputForm,CharacterEncoding->"ASCII"];
-              ];
-              "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]"
-            ,
-              If[type==="input"&&SyntaxQ[text],
-                boxes=Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"];
-                "Cell[BoxData["<>boxes<>"],\"Input\""<>cellLabel<>"]"
-              ,
-                "Cell[\""<>escape[text]<>"\",\""<>(ToUpperCase[#1]<>#2&@@StringTakeDrop[type,UpTo[1]])<>"\""<>cellLabel<>"]"
-              ]
+                ];
+                "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]",
+              "Input",
+                If[SyntaxQ[text],
+                  boxes=Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"];
+                  "Cell[BoxData["<>boxes<>"],\"Input\""<>cellLabel<>"]",
+                  "Cell[TextData[\""<>escape[text]<>"\"],\"Input\""<>cellLabel<>"]"
+                ],
+              "HorizontalLine",
+                "Cell[\"\",\"Text\",Editable->False,Selectable->False,ShowCellBracket->False,CellFrame->{{0,0},{0,1}},CellMargins->{{0,0},{1,1}},CellElementSpacings->{\"CellMinHeight\"->1},CellFrameMargins->0,CellSize->{Inherited,3}]",
+              _,
+                "Cell[TextData[\""<>escape[text]<>"\"],\""<>type<>"\""<>cellLabel<>"]"
             ]
           ,{cell,$message["cells"]}];
           notebook=StringRiffle[notebook,{"Notebook[{\n",",\n","\n}]\n"}];

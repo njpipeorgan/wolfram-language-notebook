@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 const util = require("util");
-const marked = require("marked");
+const MarkdownIt = require("markdown-it");
 const domutils = require("domutils");
 const htmlparser2 = require("htmlparser2");
 
@@ -21,7 +21,7 @@ interface WLNotebookData {
   }[];
   metadata?: { [key: string]: any };
 }
-  
+
 export class WLNotebookSerializer implements vscode.NotebookSerializer {
   async deserializeNotebook(
     content: Uint8Array,
@@ -62,7 +62,7 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
           for (let output of cell.outputs) {
             for (let item of output.items) {
               item.data = decoder.decode(item.data);
-              }
+            }
           }
         }
       }
@@ -79,48 +79,103 @@ export function deserializeMarkup(markupText: string) {
     label: string; // In[...]:= , Out[...]=
     text: string;
   }[] = [];
-  const html = marked.marked(markupText);
+  const md = new MarkdownIt({
+    html: true
+  });
+  const html = md.render(markupText);
+  console.log(html);
   const doc = htmlparser2.parseDocument(html);
+  console.log(doc);
 
-  const tagToHeader: { [key: string]: string } = {
-    "h1": "Title",
-    "h2": "Chapter",
-    "h3": "Section",
-    "h4": "Subsection",
-    "h5": "Subsubsection",
-    "h6": "Subsubsubsection"
-  };
-  
-  const handleContent = (element: any) => {
-    return domutils.getInnerHTML(element);
-  };
+  let tagStack: string[] = [];
 
-  const handleElement = (element: any) => {
-    if (!(element?.type)) {
-      return;
+  const handleContent = (element: any, pre: boolean = false) => {
+    if (typeof element === "string") {
+      return element;
+    } else if (element.type === "text") {
+      return pre ? element.data : element.data.replaceAll("\n", " ");
+    } else if (element.name === "br") {
+      return "\n";
+    } else if (element.name === "li") {
+      return domutils.getOuterHTML(element);
+    } else {
+      return (element?.children || []).map((e: any) => handleContent(e, pre)).join("");
     }
-    if (element?.type === "tag") {
-      if (tagToHeader.hasOwnProperty(element.name)) {
+  };
+
+  const nonTerminalTagRules: { [key: string]: string[] } = {
+    "": ["ol", "ul", "pre", "blockquote"],
+    "ol": ["ol", "ul", "li"],
+    "ul": ["ol", "ul", "li"],
+    "li": ["ol", "ul"],
+    "blockquote": ["blockquote"]
+  };
+
+  const handleElement = (element: any, nonTerminalTags: string[]) => {
+    if (nonTerminalTags.indexOf(element?.name || "") >= 0) {
+      tagStack.push(element.name);
+      element.children.map((e: any) => handleElement(e, nonTerminalTagRules[element?.name] || []));
+      tagStack.pop();
+    } else {
+      const elementTag = element.type === "text" ? "text" : element.name;
+      const parentTag = tagStack[tagStack.length - 1];
+      if (elementTag.match(/h[1-6]/g)) {
         cellData.push({
-          type: tagToHeader[element.name],
+          type: [
+            "Title",
+            "Chapter",
+            "Section",
+            "Subsection",
+            "Subsubsection",
+            "Subsubsubsection"][parseInt(elementTag.slice(1)) - 1],
           label: "",
           text: handleContent(element)
+        });
+      } else if (elementTag === "code") {
+        cellData.push({
+          type: "Code",
+          label: "",
+          text: handleContent(element, true)
+        });
+      } else if (elementTag === "hr") {
+        cellData.push({
+          type: "HorizontalLine",
+          label: "",
+          text: ""
         });
       } else {
-        cellData.push({
-          type: "Text",
-          label: "",
-          text: handleContent(element)
-        });
+        switch (parentTag) {
+          case "li": {
+            const listTags = tagStack.filter(tag => (tag === "ol" || tag === "ul"));
+            const isOrderedList = (listTags[listTags.length - 1] === "ol");
+            const listLevel = Math.min(Math.max(listTags.length, 1), 3);
+            if (element?.data !== "\n") {
+              cellData.push({
+                type: ["Item", "Subitem", "Subsubitem"][listLevel - 1] + (isOrderedList ? "Numbered" : ""),
+                label: "",
+                text: handleContent(element)
+              });
+            }
+            break;
+          }
+          default: {
+            if (element?.data !== "\n") {
+              cellData.push({
+                type: "Text",
+                label: "",
+                text: handleContent(element)
+              });
+            }
+          }
+        }
       }
+      
     }
   };
 
-  console.log(doc);
   doc.children.map((element: any) => {
-    handleElement(element);
+    handleElement(element, nonTerminalTagRules[""]);
   });
 
   return cellData;
 }
-  

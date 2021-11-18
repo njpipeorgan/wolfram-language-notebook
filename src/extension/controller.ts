@@ -5,7 +5,7 @@ const util = require("util");
 const path = require("path");
 const zmq = require("zeromq");
 import * as child_process from "child_process";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, writeFile } from "fs";
 import { deserializeMarkup } from "./serializer";
 
 interface ExecutionItem {
@@ -127,6 +127,28 @@ class KernelStatusBarItem {
   }
 }
 
+class ExportNotebookStatusBarItem {
+  private item: vscode.StatusBarItem;
+
+  constructor() {
+    this.item = vscode.window.createStatusBarItem(
+      "wolfram-language-export-notebook-status", vscode.StatusBarAlignment.Right, 101
+    );
+    this.item.name = "Export Notebook";
+    this.item.text = "$(loading~spin) Generating Notebook";
+    this.item.command = "wolframLanguageNotebook.manageKernels";
+    this.item.hide();
+  }
+
+  show() {
+    this.item.show();
+  }
+
+  hide() {
+    this.item.hide();
+  }
+}
+
 export class WLNotebookController {
   readonly id = "wolfram-language-notebook-controller";
   readonly notebookType = "wolfram-language-notebook";
@@ -137,6 +159,7 @@ export class WLNotebookController {
   private selectedNotebooks: Set<vscode.NotebookDocument> = new Set();
   private notebookRendererMessaging: vscode.NotebookRendererMessaging;
   private statusBarKernelItem = new KernelStatusBarItem();
+  private statusBarExportItem = new ExportNotebookStatusBarItem();
   private extensionPath: string = "";
   private disposables: any[] = [];
 
@@ -208,6 +231,7 @@ export class WLNotebookController {
         this.statusBarKernelItem.hide();
       }
     }));
+    this.disposables.push(this.statusBarExportItem);
     this.disposables.push(vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration("wolframLanguageNotebook.rendering") ||
         e.affectsConfiguration("wolframLanguageNotebook.frontEnd")
@@ -264,6 +288,32 @@ export class WLNotebookController {
     } else {
       console.log("The socket is not available; cannot post the message.");
     }
+  }
+
+  private writeFileChecked(path: string, text: string) {
+    writeFile(path, text, err => {
+      if (err) {
+        vscode.window.showErrorMessage(`Unable to write file ${path} \n${err.message}`,
+          "Retry", "Save As...", "Dismiss").then(value => {
+            if (value === "Retry") {
+              this.writeFileChecked(path, text);
+            } else if (value === "Save As...") {
+              vscode.window.showSaveDialog({
+                defaultUri: vscode.Uri.file(path),
+                filters: {
+                  "All Files": ["*"]
+                }
+              }).then(value => {
+                if (value) {
+                  this.writeFileChecked(value.fsPath, text);
+                }
+              });
+            }
+          });
+        return;
+      }
+    });
+  
   }
 
   private async handleMessageFromKernel() {
@@ -362,7 +412,17 @@ export class WLNotebookController {
           }
           break;
         case "reply-export-notebook":
-          // this.writeFileChecked(message.path, message.text);
+          this.statusBarExportItem.hide();
+          const path = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file(message?.path),
+            filters: {
+              "Wolfram Notebook": ["nb"],
+              "All Files": ["*"]
+            }
+          });
+          if (path) {
+            this.writeFileChecked(path.fsPath, message.text);
+          }
           break;
         default:
         // console.log("message has an unexpect type", message);
@@ -430,7 +490,6 @@ export class WLNotebookController {
     this.connectingtoKernel = true;
     this.statusBarKernelItem.setConnecting();
     this.statusBarKernelItem.show();
-    console.log(this.statusBarKernelItem);
     if (this.kernel || this.socket) {
       this.quitKernel();
     }
@@ -814,6 +873,17 @@ export class WLNotebookController {
     if (!(choice?.label)) {
       return;
     }
+    if (choice.label === "Wolfram Notebook" && !this.kernelConnected()) {
+      const start = await vscode.window.showErrorMessage(
+        "Exporting as Wolfram Notebook requires a connected Wolfram Kernel",
+        "Connect", "Dismiss"
+      );
+      if (start === "Connect") {
+        this.launchKernel();
+      }
+      return;
+    }
+
     const cellData: {
       type: string; // Title, Section, Text, Input, ...
       label: string; // In[...]:= , Out[...]=
@@ -841,12 +911,15 @@ export class WLNotebookController {
       }
     });
     console.log(cellData);
-    if (choice?.label === "Wolfram Language Script") {
+    if (choice.label === "Wolfram Language Script") {
 
-    } else if (choice?.label === "Wolfram Language Script") {
-
+    } else if (choice.label === "Wolfram Notebook") {
+      this.statusBarExportItem.show();
+      this.postMessageToKernel({
+        type: "request-export-notebook",
+        path: notebook.uri.fsPath,
+        cells: cellData
+      });
     }
-
-    
   }
 }

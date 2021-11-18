@@ -27,7 +27,8 @@ const makeConfig = (argv, { entry, out, target, library = 'commonjs' }) => ({
     "path": "commonjs path",
     "child_process": "commonjs child_process",
     "fs": "commonjs fs",
-    "uuid": "commonjs uuid"
+    "uuid": "commonjs uuid",
+    "markdown-it": "commonjs markdown-it"
   },
   module: {
     rules: [

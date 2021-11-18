@@ -19,13 +19,13 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.openConfigurations", () => {
     vscode.commands.executeCommand("workbench.action.openSettings", "wolframLanguageNotebook");
   }));
-  // context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.exportAs", (e: any) => {
-  //   const activeUri = e?.notebookEditor?.notebookUri;
-  //   console.log(activeUri);
-  //   if (activeUri) {
-  //     notebookController.exportNotebook(activeUri);
-  //   }
-  // }));
+  context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.exportAs", (e: any) => {
+    const activeUri = e?.notebookEditor?.notebookUri;
+    console.log(activeUri);
+    if (activeUri) {
+      notebookController.exportNotebook(activeUri);
+    }
+  }));
 }
 
 // This method is called when your extension is deactivated
