@@ -586,11 +586,11 @@ handleMessage[]:=Module[{},
         KeyValueMap[setConfig,$message["config"]];,
       "request-export-notebook",
         Module[{type,text,cellLabel,boxes,notebook,escape},
-          escape=(StringReplace[#,{"\""->"\\\"","\\"->"\\\""}]&);
+          escape=ToString[#,InputForm,CharacterEncoding->"ASCII"]&;
           notebook=Table[
             type=ToString@Lookup[cell,"type","Text"];
             text=Lookup[cell,"text",""];
-            cellLabel=If[Head[#]===String&&StringLength[#]>0,",CellLabel->\""<>escape[#]<>"\"",""]&@cell["label"];
+            cellLabel=If[Head[#]===String&&StringLength[#]>0,",CellLabel->"<>escape[#],""]&@cell["label"];
             Switch[type,
               "Output",
                 If[StringLength[text]>0,
@@ -607,15 +607,15 @@ handleMessage[]:=Module[{},
                 ];
                 "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]",
               "Input",
-                If[SyntaxQ[text],
-                  boxes=Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"];
+                If[SyntaxQ["\("<>text<>"\)"],
+                  boxes=Quiet@ToString[ToExpression["\("<>text<>"\)",InputForm],InputForm,CharacterEncoding->"ASCII"];
                   "Cell[BoxData["<>boxes<>"],\"Input\""<>cellLabel<>"]",
-                  "Cell[TextData[\""<>escape[text]<>"\"],\"Input\""<>cellLabel<>"]"
+                  "Cell[TextData["<>escape[text]<>"],\"Input\""<>cellLabel<>"]"
                 ],
               "HorizontalLine",
                 "Cell[\"\",\"Text\",Editable->False,Selectable->False,ShowCellBracket->False,CellFrame->{{0,0},{0,1}},CellMargins->{{0,0},{1,1}},CellElementSpacings->{\"CellMinHeight\"->1},CellFrameMargins->0,CellSize->{Inherited,3}]",
               _,
-                "Cell[TextData[\""<>escape[text]<>"\"],\""<>type<>"\""<>cellLabel<>"]"
+                "Cell[TextData["<>escape[text]<>"],\""<>type<>"\""<>cellLabel<>"]"
             ]
           ,{cell,$message["cells"]}];
           notebook=StringRiffle[notebook,{"Notebook[{\n",",\n","\n}]\n"}];

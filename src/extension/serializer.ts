@@ -88,12 +88,13 @@ export function deserializeMarkup(markupText: string) {
   console.log(doc);
 
   let tagStack: string[] = [];
+  let isItemParagraphStack: boolean[] = [];
 
   const handleContent = (element: any, pre: boolean = false) => {
     if (typeof element === "string") {
       return element;
     } else if (element.type === "text") {
-      return pre ? element.data : element.data.replaceAll("\n", " ");
+      return pre ? element.data.replace(/\n$/, " ") : element.data.replaceAll("\n", " ");
     } else if (element.name === "br") {
       return "\n";
     } else if (element.name === "li") {
@@ -105,17 +106,19 @@ export function deserializeMarkup(markupText: string) {
 
   const nonTerminalTagRules: { [key: string]: string[] } = {
     "": ["ol", "ul", "pre", "blockquote"],
-    "ol": ["ol", "ul", "li"],
-    "ul": ["ol", "ul", "li"],
-    "li": ["ol", "ul"],
-    "blockquote": ["blockquote"]
+    "ol": ["li"],
+    "ul": ["li"],
+    "li": ["ol", "ul", "pre"],
+    "blockquote": ["blockquote", "pre"]
   };
 
   const handleElement = (element: any, nonTerminalTags: string[]) => {
     if (nonTerminalTags.indexOf(element?.name || "") >= 0) {
       tagStack.push(element.name);
+      isItemParagraphStack.push(false);
       element.children.map((e: any) => handleElement(e, nonTerminalTagRules[element?.name] || []));
       tagStack.pop();
+      isItemParagraphStack.pop();
     } else {
       const elementTag = element.type === "text" ? "text" : element.name;
       const parentTag = tagStack[tagStack.length - 1];
@@ -133,7 +136,7 @@ export function deserializeMarkup(markupText: string) {
         });
       } else if (elementTag === "code") {
         cellData.push({
-          type: "Code",
+          type: "CodeText",
           label: "",
           text: handleContent(element, true)
         });
@@ -150,8 +153,12 @@ export function deserializeMarkup(markupText: string) {
             const isOrderedList = (listTags[listTags.length - 1] === "ol");
             const listLevel = Math.min(Math.max(listTags.length, 1), 3);
             if (element?.data !== "\n") {
+              const isItemParagraph = isItemParagraphStack[isItemParagraphStack.length - 1];
+              const type = ["Item", "Subitem", "Subsubitem"][listLevel - 1] + (
+                isItemParagraph ? "Paragraph" : isOrderedList ? "Numbered" : "");
+              isItemParagraphStack[isItemParagraphStack.length - 1] = true;
               cellData.push({
-                type: ["Item", "Subitem", "Subsubitem"][listLevel - 1] + (isOrderedList ? "Numbered" : ""),
+                type: type,
                 label: "",
                 text: handleContent(element)
               });

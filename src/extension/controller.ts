@@ -414,7 +414,7 @@ export class WLNotebookController {
         case "reply-export-notebook":
           this.statusBarExportItem.hide();
           const path = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file(message?.path),
+            defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, ".nb")),
             filters: {
               "Wolfram Notebook": ["nb"],
               "All Files": ["*"]
