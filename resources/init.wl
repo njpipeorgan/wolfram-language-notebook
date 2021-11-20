@@ -16,6 +16,9 @@ $hasCodeParser=(Quiet@Needs["CodeParser`"]=!=$Failed);
 If[$VersionNumber<12.0,
   logError["Version 12.0 or higher is required."];Exit[];
 ];
+If[!TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[StyleBox[RowBox[{"\"1.\"","\[Times]",SuperscriptBox["10","\"-20\""]}],___],___],___]],
+  logError["Unexpected box form of real numbers."];Exit[];
+]
 If[!$hasZeroMQ,
   logError["Failed to load ZeroMQLink` package."];Exit[];
 ];
@@ -176,6 +179,11 @@ renderHTMLimpl[str_String]:=Which[
     Which[
       StringTake[str,{{1},{-1}}]=={"\"","\""}&&Lookup[$inheritedStyle,ShowStringCharacters,False]===False,
         "<w>"<>StringReplace[renderHTMLescape@StringReplace[StringTake[str,{2,-2}],stringCharacterReplacements],"\n"->"</w><br/><w>"]<>"</w>",
+      3<=StringLength[str]<=27&&StringContainsQ[str,"`"]&&StringContainsQ["0123456789",StringTake[str,1]],
+        If[StringQ[#],
+          "<w>"<>StringTake[#,{2,-2}]<>"</w>",
+          "<wsup><w></w><w>"<>StringTake[#[[1,1]],{2,-2}]<>"&times;10</w><w><w>"<>StringTake[#[[1,3,2]],{2,-2}]<>"</w></w></wsup>"
+        ]&@ToBoxes[NumberForm[ToExpression@str]][[1,1,1]],
       True,
         "<w>"<>renderHTMLescape[str]<>"</w>"
     ]

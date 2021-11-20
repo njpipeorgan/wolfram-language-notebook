@@ -1,6 +1,8 @@
 import * as vscode from "vscode";
 import { WLNotebookSerializer } from "./serializer";
 import { WLNotebookController } from "./controller";
+import { setWLSymbolData, wlCompletionProvider } from "./language";
+import { readFileSync } from "fs";
 
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
@@ -26,6 +28,8 @@ export function activate(context: vscode.ExtensionContext) {
       notebookController.exportNotebook(activeUri);
     }
   }));
+  setWLSymbolData(readFileSync(context.extensionPath + "/resources/wl-symbols.txt").toString());
+  context.subscriptions.push(vscode.languages.registerCompletionItemProvider("wolfram", wlCompletionProvider));
 }
 
 // This method is called when your extension is deactivated
