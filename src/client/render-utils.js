@@ -325,7 +325,7 @@ const handleSqrtBox = (elem, style) => {
     elem.children[1].innerHTML = `<w style="transform:scaleY(${scaleFactorRight})">${signRightChar}</w>`;
     elem.children[0].children[0].innerHTML = `<w style="transform:scaleY(${scaleFactorLeft})">${signLeftChar}</w>`;
     elem.children[0].children[0].style.height = `${signLeftHeight.toFixed(3)}em`;
-    elem.style.marginTop = `${Math.max(scriptExtraHeight, 0.0).toFixed(3)}em`;
+    elem.style.marginTop = `${Math.max(scriptExtraHeight, 0.1).toFixed(3)}em`;
   });
   return [baseSpan[0] + lineWidth, baseSpan[1]];
 };

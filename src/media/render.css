@@ -133,7 +133,7 @@ wfrac {
   padding: 0 0.2ch;
 }
 wsqrt {
-  margin: 0em 0em 0em 0em;
+  margin: 0 0.1ch;
 }
 
 
@@ -278,7 +278,7 @@ wgrid > w {
   display: block;
   justify-content: center;
   align-items: center;
-  padding: 2px;
+  padding: 0.1em 0.3em;
   border-right: solid 0px;
   border-bottom: solid 0px;
 }

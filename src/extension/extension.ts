@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
       notebookController.exportNotebook(activeUri);
     }
   }));
-  setWLSymbolData(readFileSync(context.extensionPath + "/resources/wl-symbols.txt").toString());
+  setWLSymbolData(readFileSync(context.extensionPath + "/resources/wl-symbol-usages.txt").toString());
   context.subscriptions.push(vscode.languages.registerCompletionItemProvider("wolfram", wlCompletionProvider));
 }
 

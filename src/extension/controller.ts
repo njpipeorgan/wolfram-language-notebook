@@ -343,7 +343,6 @@ export class WLNotebookController {
 
       const id = message?.uuid || "";
       const execution = this.executionQueue.find(id);
-      console.log(`handleMessageFromKernel(), uuid = ${id}`);
       switch (message.type) {
         case "show-input-name":
           if (execution) {
@@ -424,6 +423,10 @@ export class WLNotebookController {
             this.writeFileChecked(path.fsPath, message.text);
           }
           break;
+        case "update-symbol-usages":
+          break;
+        case "update-symbol-usages-progress":
+          break;
         default:
         // console.log("message has an unexpect type", message);
       }
@@ -483,9 +486,22 @@ export class WLNotebookController {
     console.log(`remote = ${kernelIsRemote}, port = ${kernelPort}`);
 
     const kernelInitPath = path.join(this.extensionPath, 'resources', 'init-compressed.txt');
+    const kernelRenderInitPath = path.join(this.extensionPath, 'resources', 'render-html.wl');
+    let kernelInitString = "";
+    let kernelRenderInitString = "";
+
+    try {
+      kernelInitString = readFileSync(kernelInitPath).toString();
+      kernelRenderInitString = readFileSync(kernelRenderInitPath).toString();
+    } catch (error) {
+      vscode.window.showErrorMessage("Failed to read kernel initialization files.");
+      this.quitKernel();
+      return;
+    }
+
     const kernelInitCommands = kernelIsRemote ?
-      `"zmqPort=${kernelPort};ToExpression[Uncompress[\\"${readFileSync(kernelInitPath).toString()}\\"]]"` :
-      `ToExpression["zmqPort=${kernelPort};"<>Uncompress["${readFileSync(kernelInitPath).toString()}"]]`;
+      `"zmqPort=${kernelPort};ToExpression[Uncompress[\\"${kernelInitString}\\"]]"` :
+      `ToExpression["zmqPort=${kernelPort};"<>Uncompress["${kernelInitString}"]]`;
 
     this.connectingtoKernel = true;
     this.statusBarKernelItem.setConnecting();
@@ -550,6 +566,7 @@ export class WLNotebookController {
           if (message["type"] !== "test" || message["text"] !== rand) {
             throw Error("wrong message");
           }
+          this.evaluateFrontEnd(kernelRenderInitString, )
           this.postConfigToKernel();
           this.connectingtoKernel = false;
           this.statusBarKernelItem.setConnected(message["version"] || "");
@@ -919,6 +936,16 @@ export class WLNotebookController {
         type: "request-export-notebook",
         path: notebook.uri.fsPath,
         cells: cellData
+      });
+    }
+  }
+
+  evaluateFrontEnd(text: string, asynchronous: boolean = false) {
+    if (this.kernelConnected()) {
+      this.postMessageToKernel({
+        type: "evaluate-front-end",
+        async: asynchronous,
+        text: text
       });
     }
   }
