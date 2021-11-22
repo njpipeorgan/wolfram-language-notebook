@@ -29,8 +29,6 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
   ): Promise<vscode.NotebookData> {
     const decoder = new util.TextDecoder();
     const encoder = new util.TextEncoder();
-    // console.log("content = ");
-    // console.log(decoder.decode(content));
     let notebook: WLNotebookData;
     try {
       notebook = JSON.parse(decoder.decode(content)) as WLNotebookData;
@@ -83,9 +81,7 @@ export function deserializeMarkup(markupText: string) {
     html: true
   });
   const html = md.render(markupText);
-  console.log(html);
   const doc = htmlparser2.parseDocument(html);
-  console.log(doc);
 
   let tagStack: string[] = [];
   let isItemParagraphStack: boolean[] = [];

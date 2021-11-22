@@ -24,7 +24,7 @@ export const activate: ActivationFunction = context => {
 
   return {
     renderOutputItem(outputItem, element) {
-      console.log(outputItem, element);
+      // console.log(outputItem, element);
       element.innerHTML = "<div id=\"root\"></div>";
       const root = element.querySelector<HTMLElement>('#root')!;
       errorOverlay.wrap(root, () => {

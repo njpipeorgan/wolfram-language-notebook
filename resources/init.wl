@@ -4,7 +4,10 @@
 (*Import*)
 
 
+SetAttributes[logWrite,HoldAllComplete];
 logWrite[message_]:=WriteString[Streams["stdout"],message];
+SetAttributes[logWriteDebug,HoldAllComplete];
+logWriteDebug[message_]:=Null;(*logWrite[message];*)
 logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
 
 
@@ -81,9 +84,8 @@ $outputName="Null";
 $messagedebug=Null;
 
 
-logWrite["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[500]]];
-logWrite["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[500]]];
-logWrite["connecting to kernel"];
+logWriteDebug["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[500]]];
+logWriteDebug["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[500]]];
 Quiet@LinkClose[$kernel];
 $kernel=LinkLaunch[First[$CommandLine] <> " -wstp"];
 $preemptive=LinkCreate[];
@@ -135,7 +137,6 @@ readMessage[timeout_:1.0]:=Module[{temp},Pause[timeout];If[Head[$messagedebug]==
 
 handleOutput[]:=Module[{},
   Module[{output=queuePop[$outputQueue],boxes,exceedsExprSize,text,html},
-    (*logWrite["$outputQueue is being processed, the type of the current element is "<>ToString@output["type"]];*)
     $previousOutputMessage=$currentOutputMessage;
     $currentOutputMessage="";
     Switch[output["type"],
@@ -145,7 +146,7 @@ handleOutput[]:=Module[{},
           "uuid"->output["uuid"]
         |>];,
       ReturnExpressionPacket,
-        logWrite["boxesTimeLimit = "<>ToString[$getKernelConfig["boxesTimeLimit"]/1000.0]<>" seconds"];
+        logWriteDebug["boxesTimeLimit = "<>ToString[$getKernelConfig["boxesTimeLimit"]/1000.0]<>" seconds"];
         TimeConstrained[
           exceedsExprSize=!TrueQ[ByteCount[output["packet"]]<=$getKernelConfig["outputSizeLimit"]*2^10];
           If[exceedsExprSize,
@@ -163,8 +164,8 @@ handleOutput[]:=Module[{},
           text="$Failed";
         ];
         
-        logWrite["htmlMemoryLimit = "<>ToString[$getKernelConfig["htmlMemoryLimit"]]<>" MB"];
-        logWrite["htmlTimeLimit = "<>ToString[$getKernelConfig["htmlTimeLimit"]/1000.0]<>" seconds"];
+        logWriteDebug["htmlMemoryLimit = "<>ToString[$getKernelConfig["htmlMemoryLimit"]]<>" MB"];
+        logWriteDebug["htmlTimeLimit = "<>ToString[$getKernelConfig["htmlTimeLimit"]/1000.0]<>" seconds"];
         html=TimeConstrained[
           MemoryConstrained[
             renderHTML[boxes],
@@ -217,7 +218,7 @@ isdangerous[expr_]:=Intersection[Cases[expr,s_Symbol:>HoldComplete[s],{0,Infinit
 
 handleMessage[]:=Module[{},
   $message=Quiet@Developer`ReadRawJSONString[$messagetext];
-  logWrite["message received: "<>ToString[$messagetext]<>"\n"];
+  logWriteDebug["message received: "<>ToString[$messagetext]<>"\n"];
   If[$message===$Failed,
     logError["Error occured in parsing the previous message.\n$messagetext = "<>ToString[$messagetext]];
     Return[];
@@ -232,9 +233,9 @@ handleMessage[]:=Module[{},
             ToExpression[$message["text"],InputForm,EnterExpressionPacket];,
           If[$hasCodeParser,
             syntaxErrors=Cases[CodeParser`CodeParse[$message["text"]],(ErrorNode|AbstractSyntaxErrorNode|UnterminatedGroupNode|UnterminatedCallNode)[___],Infinity];
-            logWrite["The expression has the following syntax errors: "<>ToString[syntaxErrors]];,
+            logWriteDebug["The expression has the following syntax errors: "<>ToString[syntaxErrors]];,
             syntaxErrors={};
-            logWrite["The expression has syntax errors (CodeParser` is unavailable)"];
+            logWriteDebug["The expression has syntax errors (CodeParser` is unavailable)"];
           ];
           queuePush[$outputQueue,<|
             "uuid"->$message["uuid"],
@@ -352,12 +353,12 @@ handleMainLink[]:=Module[{},
         Continue[];
       ];
       packet=Quiet@LinkRead[$kernel];
-      logWrite["packet="<>ToString[packet]<>"\n"];
+      logWriteDebug["packet="<>ToString[packet]<>"\n"];
       If[Head[packet]===LinkRead,
         logWrite["The kernel appears to be dead, exiting..."];
         Quit[];
       ];
-      logWrite["Head[packet]="<>ToString[Head[packet]]<>"\n"];
+      logWriteDebug["Head[packet]="<>ToString[Head[packet]]<>"\n"];
       Switch[Head[packet],
         InputNamePacket,
           If[$evaluating["progress"][[1]]===$evaluating["progress"][[2]],

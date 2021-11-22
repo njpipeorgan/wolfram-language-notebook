@@ -121,8 +121,8 @@ class KernelStatusBarItem {
     this.item.tooltip = "Connecting to the kernel";
   }
 
-  setConnected(tooltip?: string) {
-    this.item.text = "$(check)" + this.baseText;
+  setConnected(tooltip: string = "", isRemote: boolean = false) {
+    this.item.text = (isRemote ? "$(remote)" : "$(check)") + this.baseText;
     this.item.tooltip = tooltip || "Kernel connected";
   }
 }
@@ -216,7 +216,7 @@ export class WLNotebookController {
         this.selectedNotebooks.delete(notebook);
         console.log(`The controller is unselected for a notebook ${notebook.uri.fsPath}`);
       }
-      console.log(`There are ${this.selectedNotebooks.size} for which the controller is selected.`);
+      console.log(`There are ${this.selectedNotebooks.size} notebook(s) for which the controller is selected.`);
       if (this.selectedNotebooks.size === 0 && this.getConfig("kernel.quitAutomatically")) {
         // when the last notebook was closed, and the user choose to quit kernel automatically
         this.quitKernel();
@@ -284,7 +284,7 @@ export class WLNotebookController {
   private postMessageToKernel(message: any) {
     if (this.socket !== undefined) {
       this.socket.send(typeof message === 'string' ? message : JSON.stringify(message));
-      console.log("message posted " + (typeof message === 'string' ? message : JSON.stringify(message)));
+      // console.log("message posted " + (typeof message === 'string' ? message : JSON.stringify(message)));
     } else {
       console.log("The socket is not available; cannot post the message.");
     }
@@ -331,9 +331,7 @@ export class WLNotebookController {
         console.log(message);
         return;
       }
-      console.log(message);
       message = Buffer.from(message).toString("utf-8");
-      console.log(message);
       try {
         message = JSON.parse(message);
       } catch (error) {
@@ -533,11 +531,11 @@ export class WLNotebookController {
     }
     console.log("launchCommand = " + launchCommand);
     console.log("launchArguments = ", launchArguments.toString().slice(0, 200));
-    this.kernel = child_process.spawn(launchCommand, launchArguments);
-
+    this.kernel = child_process.spawn(launchCommand, launchArguments, { stdio: "pipe" });
+    
     this.kernel.stdout.on("data", async (data: Buffer) => {
-      console.log("Received the following data from kernel:");
-      console.log(`${data.toString()}`);
+      // console.log("Received the following data from kernel:");
+      // console.log(`${data.toString()}`);
       const message = data.toString();
       if (message.startsWith("<ERROR> ")) {
         // a fatal error
@@ -560,17 +558,19 @@ export class WLNotebookController {
           if (received instanceof Error) {
             throw received;
           }
-          // console.log("Received the following test message from kernel:");
-          // console.log(`${received.toString()}`);
+          console.log("Received the following test message from kernel:");
+          console.log(`${received.toString()}`);
           const message = JSON.parse(received.toString());
           if (message["type"] !== "test" || message["text"] !== rand) {
             throw Error("wrong message");
           }
-          this.evaluateFrontEnd(kernelRenderInitString, )
+          this.evaluateFrontEnd(kernelRenderInitString, false);
           this.postConfigToKernel();
           this.connectingtoKernel = false;
-          this.statusBarKernelItem.setConnected(message["version"] || "");
-          this.handleMessageFromKernel();
+          this.statusBarKernelItem.setConnected(message["version"] || "", kernelIsRemote);
+          try {
+            this.handleMessageFromKernel();
+          } catch {}
           this.checkoutExecutionQueue();
         } catch (error) {
           // console.log("Catched an error when connecting to the kernel:", error);
@@ -588,11 +588,13 @@ export class WLNotebookController {
       if (this.restartAfterExitKernel) {
         this.restartAfterExitKernel = false;
         this.launchKernel();
+      } else {
+        vscode.window.showWarningMessage(`Kernel "${kernelName}" has been disconnected.`);
       }
     });
     this.kernel.on("error", () => {
       this.quitKernel();
-      vscode.window.showWarningMessage(`Failed to connect to the kernel ${kernelName}.`, "Try Again", "Open settings", "Dismiss").then(value => {
+      vscode.window.showWarningMessage(`Failed to connect to the kernel "${kernelName}".`, "Try Again", "Open settings", "Dismiss").then(value => {
         if (value === "Try Again") {
           this.launchKernel();
         } else if (value === "Open settings") {
@@ -854,12 +856,18 @@ export class WLNotebookController {
     if (execution) {
       if (this.kernelConnected()) {
         // the kernel is ready
-        this.postMessageToKernel({
-          type: "evaluate-cell",
-          uuid: execution.id,
-          text: execution.execution.cell.document.getText()
-        });
-        this.executionQueue.start(execution.id);
+        const text = execution.execution.cell.document.getText();
+        if (text) {
+          this.postMessageToKernel({
+            type: "evaluate-cell",
+            uuid: execution.id,
+            text: execution.execution.cell.document.getText()
+          });
+          this.executionQueue.start(execution.id);
+        } else {
+          this.executionQueue.start(execution.id);
+          this.executionQueue.end(execution.id, false);
+        }
       } else if (this.connectingtoKernel) {
         // trying to connect to kernel, then do nothing
       } else {
