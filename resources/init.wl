@@ -19,9 +19,13 @@ $hasCodeParser=(Quiet@Needs["CodeParser`"]=!=$Failed);
 If[$VersionNumber<12.0,
   logError["Version 12.0 or higher is required."];Exit[];
 ];
-If[!TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[StyleBox[RowBox[{"\"1.\"","\[Times]",SuperscriptBox["10","\"-20\""]}],___],___],___]],
-  logError["Unexpected box form of real numbers."];Exit[];
-]
+If[TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[StyleBox[RowBox[{"\"1.\"","\[Times]",SuperscriptBox["10","\"-20\""]}],___],___],___]],
+  $numberFormHasStyleBox=True;,
+  If[TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[RowBox[{"1.","\[Times]",SuperscriptBox["10","-20"]}],___],___]],
+    $numberFormHasStyleBox=False;,
+    logError["Unexpected box form of real numbers."];Exit[];
+  ];
+];
 If[!$hasZeroMQ,
   logError["Failed to load ZeroMQLink` package."];Exit[];
 ];

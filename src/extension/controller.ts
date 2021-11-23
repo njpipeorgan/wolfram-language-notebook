@@ -240,7 +240,7 @@ export class WLNotebookController {
     this.disposables.push(vscode.window.onDidChangeActiveTextEditor(event => {
       if (event?.document && this.supportedLanguages.includes(event.document.languageId)) {
         this.statusBarKernelItem.show();
-      } else {
+      } else if (!this.kernelConnected()) {
         this.statusBarKernelItem.hide();
       }
     }));
@@ -351,7 +351,8 @@ export class WLNotebookController {
       try {
         message = JSON.parse(message);
       } catch (error) {
-        console.log("Failed to parse the previous message.");
+        console.log("Failed to parse the following message:");
+        console.log(message);
         continue;
       }
 

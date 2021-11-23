@@ -6,6 +6,7 @@
   "repository": "https://github.com/njpipeorgan/wolfram-language-notebook",
   "version": "0.0.1",
   "preview": true,
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.62.0"
   },
