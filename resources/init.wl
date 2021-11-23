@@ -11,7 +11,7 @@ logWriteDebug[message_]:=Null;(*logWrite[message];*)
 logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
 
 
-logWrite["Initializing..."];
+logWrite["<INITIALIZATION STARTS>"];
 $hasZeroMQ=(Quiet@Needs["ZeroMQLink`"]=!=$Failed);
 $hasCodeParser=(Quiet@Needs["CodeParser`"]=!=$Failed);
 
@@ -418,7 +418,7 @@ logWrite[TemplateApply["[address tcp://127.0.0.1:``]\n",$zmqserver["DestinationP
 MakeBoxes[#]&@Image[{{0}}];
 
 
-logWrite["Initialization is done."];
+logWrite["<INITIALIZATION ENDS>"];
 
 
 While[True,

@@ -1,3 +1,17 @@
+// Copyright 2021 Tianhuan Lu
+// 
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// 
+//     http://www.apache.org/licenses/LICENSE-2.0
+// 
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import * as vscode from "vscode";
 import stringArgv from "string-argv";
 import * as uuid from "uuid";
@@ -223,7 +237,6 @@ export class WLNotebookController {
       }
     });
 
-    this.disposables.push(this.statusBarKernelItem);
     this.disposables.push(vscode.window.onDidChangeActiveTextEditor(event => {
       if (event?.document && this.supportedLanguages.includes(event.document.languageId)) {
         this.statusBarKernelItem.show();
@@ -231,7 +244,6 @@ export class WLNotebookController {
         this.statusBarKernelItem.hide();
       }
     }));
-    this.disposables.push(this.statusBarExportItem);
     this.disposables.push(vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration("wolframLanguageNotebook.rendering") ||
         e.affectsConfiguration("wolframLanguageNotebook.frontEnd")
@@ -239,11 +251,15 @@ export class WLNotebookController {
         this.postConfigToKernel();
       }
     }));
+    this.disposables.push(this.statusBarKernelItem);
+    this.disposables.push(this.statusBarExportItem);
 
     this.controller.dispose = () => {
       this.quitKernel();
       console.log("controller.disposed()");
+      console.log(`this.disposables.length = ${this.disposables.length}`);
       this.disposables.forEach(item => {
+        console.log(item);
         item.dispose();
       });
     };
@@ -467,7 +483,25 @@ export class WLNotebookController {
     this.statusBarKernelItem.setDisconnected();
   };
 
-  private launchKernelWithName(kernelName: string, kernel: any) {
+  private showKernelLaunchFailed(kernelName: string = "") {
+    vscode.window.showErrorMessage(
+      `Failed to connect to the kernel${kernelName ? " \"" + kernelName + "\"" : ""}.`,
+      "Try Again", "Test in Terminal", "Edit configurations"
+    ).then(value => {
+      if (value === "Try Again") {
+        this.launchKernel();
+      } else if (value === "Test in Terminal") {
+        this.launchKernel(undefined, true);
+      } else if (value === "Edit configurations") {
+        vscode.commands.executeCommand(
+          "workbench.action.openSettings",
+          "wolframLanguageNotebook.kernel.configurations"
+        );
+      }
+    });
+  }
+
+  private launchKernelWithName(kernelName: string, kernel: any, testInTerminal: boolean = false) {
     let connectionTimeout = this.getConfig("kernel.connectionTimeout") as number;
     if (!(1000 < connectionTimeout)) {
       connectionTimeout = 1000; // milliseconds
@@ -501,9 +535,6 @@ export class WLNotebookController {
       `"zmqPort=${kernelPort};ToExpression[Uncompress[\\"${kernelInitString}\\"]]"` :
       `ToExpression["zmqPort=${kernelPort};"<>Uncompress["${kernelInitString}"]]`;
 
-    this.connectingtoKernel = true;
-    this.statusBarKernelItem.setConnecting();
-    this.statusBarKernelItem.show();
     if (this.kernel || this.socket) {
       this.quitKernel();
     }
@@ -520,91 +551,111 @@ export class WLNotebookController {
         sshHost,
         kernelCommand[0] || "wolframscript",
         ...kernelCommand.splice(1),
-        "-code", kernelInitCommands
+        ...(testInTerminal ? [] : ["-code", kernelInitCommands])
       ];
     } else {
       launchCommand = kernelCommand[0] || "wolframscript";
       launchArguments = [
         ...kernelCommand.splice(1),
-        "-code", kernelInitCommands
+        ...(testInTerminal ? [] : ["-code", kernelInitCommands])
       ];
     }
     console.log("launchCommand = " + launchCommand);
     console.log("launchArguments = ", launchArguments.toString().slice(0, 200));
-    this.kernel = child_process.spawn(launchCommand, launchArguments, { stdio: "pipe" });
-    
-    this.kernel.stdout.on("data", async (data: Buffer) => {
-      // console.log("Received the following data from kernel:");
-      // console.log(`${data.toString()}`);
-      const message = data.toString();
-      if (message.startsWith("<ERROR> ")) {
-        // a fatal error
-        vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
-        return;
-      }
-      const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
-      if (match) {
-        // console.log(`match = ${match}`);
-        this.socket = new zmq.Pair({ linger: 0 });
-        this.socket.connect("tcp://" + match[1]);
-        const rand = Math.floor(Math.random() * 1e9).toString();
-        try {
-          this.postMessageToKernel({ type: "test", text: rand });
-          let timer: any;
-          const [received] = await Promise.race([
-            this.socket.receive(),
-            new Promise(res => timer = setTimeout(() => res([Error("timeout")]), connectionTimeout))
-          ]).finally(() => clearTimeout(timer));
-          if (received instanceof Error) {
-            throw received;
-          }
-          console.log("Received the following test message from kernel:");
-          console.log(`${received.toString()}`);
-          const message = JSON.parse(received.toString());
-          if (message["type"] !== "test" || message["text"] !== rand) {
-            throw Error("wrong message");
-          }
-          this.evaluateFrontEnd(kernelRenderInitString, false);
-          this.postConfigToKernel();
-          this.connectingtoKernel = false;
-          this.statusBarKernelItem.setConnected(message["version"] || "", kernelIsRemote);
-          try {
-            this.handleMessageFromKernel();
-          } catch {}
-          this.checkoutExecutionQueue();
-        } catch (error) {
-          // console.log("Catched an error when connecting to the kernel:", error);
-          this.quitKernel();
+
+    if (testInTerminal) {
+      const terminal = vscode.window.createTerminal("Wolfram Language");
+      this.disposables.push(terminal);
+      terminal.show();
+      terminal.sendText(launchCommand + " " + launchArguments.join(" "));
+    } else {
+      this.connectingtoKernel = true;
+      this.statusBarKernelItem.setConnecting();
+      this.statusBarKernelItem.show();
+
+      this.kernel = child_process.spawn(launchCommand, launchArguments, { stdio: "pipe" });
+
+      let isFirstMessage = true;
+      this.kernel.stdout.on("data", async (data: Buffer) => {
+        if (this.connectingtoKernel) {
+          console.log("Received the following data from kernel:");
+          console.log(`${data.toString()}`);
         }
-      }
-    });
-    this.kernel.stderr.on("data", (data: Buffer) => {
-      console.log("Received the following data from kernel (stderr):");
-      console.log(`${data.toString()}`);
-    });
-    this.kernel.on("exit", (code: number, signal: string) => {
-      this.quitKernel();
-      console.log(`Process exited with code ${code} and signal ${signal}.`);
-      if (this.restartAfterExitKernel) {
-        this.restartAfterExitKernel = false;
-        this.launchKernel();
-      } else {
-        vscode.window.showWarningMessage(`Kernel "${kernelName}" has been disconnected.`);
-      }
-    });
-    this.kernel.on("error", () => {
-      this.quitKernel();
-      vscode.window.showWarningMessage(`Failed to connect to the kernel "${kernelName}".`, "Try Again", "Open settings", "Dismiss").then(value => {
-        if (value === "Try Again") {
-          this.launchKernel();
-        } else if (value === "Open settings") {
-          vscode.commands.executeCommand("workbench.action.openSettings", "wolframLanguageNotebook");
+        const message = data.toString();
+        if (message.startsWith("<ERROR> ")) {
+          // a fatal error
+          vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
+          return;
+        }
+        if (isFirstMessage) {
+          if (message.startsWith("<INITIALIZATION STARTS>") || ("<INITIALIZATION STARTS>").startsWith(message)) {
+            isFirstMessage = false;
+          } else {
+            this.quitKernel();
+            this.showKernelLaunchFailed(kernelName);
+            return;
+          }
+        }
+        const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
+        if (match) {
+          // console.log(`match = ${match}`);
+          this.socket = new zmq.Pair({ linger: 0 });
+          this.socket.connect("tcp://" + match[1]);
+          const rand = Math.floor(Math.random() * 1e9).toString();
+          try {
+            this.postMessageToKernel({ type: "test", text: rand });
+            let timer: any;
+            const [received] = await Promise.race([
+              this.socket.receive(),
+              new Promise(res => timer = setTimeout(() => res([Error("timeout")]), connectionTimeout))
+            ]).finally(() => clearTimeout(timer));
+            if (received instanceof Error) {
+              throw received;
+            }
+            console.log("Received the following test message from kernel:");
+            console.log(`${received.toString()}`);
+            const message = JSON.parse(received.toString());
+            if (message["type"] !== "test" || message["text"] !== rand) {
+              throw Error("wrong message");
+            }
+            this.evaluateFrontEnd(kernelRenderInitString, false);
+            this.postConfigToKernel();
+            this.connectingtoKernel = false;
+            this.statusBarKernelItem.setConnected(message["version"] || "", kernelIsRemote);
+            try {
+              this.handleMessageFromKernel();
+            } catch {}
+            this.checkoutExecutionQueue();
+          } catch (error) {
+            // console.log("Catched an error when connecting to the kernel:", error);
+            this.quitKernel();
+          }
         }
       });
-    });
+      this.kernel.stderr.on("data", (data: Buffer) => {
+        console.log("Received the following data from kernel (stderr):");
+        console.log(`${data.toString()}`);
+      });
+      this.kernel.on("exit", (code: number, signal: string) => {
+        this.quitKernel();
+        console.log(`Process exited with code ${code} and signal ${signal}.`);
+        if (this.restartAfterExitKernel) {
+          this.restartAfterExitKernel = false;
+          this.launchKernel();
+        } else {
+          vscode.window.showWarningMessage(`Kernel "${kernelName}" has been disconnected.`);
+        }
+      });
+      this.kernel.on("error", () => {
+        this.quitKernel();
+        this.showKernelLaunchFailed(kernelName);
+      });
+    }
+
+    
   };
 
-  private launchKernel(kernelName: string | undefined = undefined) {
+  private launchKernel(kernelName: string | undefined = undefined, testInTerminal: boolean = false) {
     if (this.kernelConnected()) {
       return;
     }
@@ -651,12 +702,12 @@ export class WLNotebookController {
             ).then(() => {
               // config may not be available yet; add a short delay
               setTimeout(() => {
-                this.launchKernel("wolframscript");
+                this.launchKernel("wolframscript", testInTerminal);
               }, 200);
             });
           }
           else if (value.label.startsWith("$(debug-start)")) {
-            this.launchKernel(value.label.substring(15));
+            this.launchKernel(value.label.substring(15), testInTerminal);
           } else if (value.label === "$(new-file) Add a new kernel") {
             this.addNewKernel();
           } else if ("$(notebook-edit) Edit kernel configurations in settings") {
@@ -671,7 +722,7 @@ export class WLNotebookController {
       // try to use the specified kernel
       const kernel = kernels[kernelName];
       if (typeof kernel === "object" && "command" in kernel) {
-        this.launchKernelWithName(kernelName, kernel);
+        this.launchKernelWithName(kernelName, kernel, testInTerminal);
       } else {
         vscode.window.showErrorMessage(
           `Failed to find the kernel ${kernelName} in configurations.\nA kernel must contain a \"command\" field.`,
@@ -890,8 +941,13 @@ export class WLNotebookController {
     }
 
     const choice = await vscode.window.showQuickPick([
-      { label: "Wolfram Language Script" },
-      { label: "Wolfram Notebook" }
+      {
+        label: "Wolfram Language Package/Script",
+        detail: "Export code cells only"
+      }, {
+        label: "Wolfram Notebook",
+        detail: "Export all cells"
+      }
     ], {
       placeHolder: "Export As..."
     });
@@ -936,8 +992,23 @@ export class WLNotebookController {
       }
     });
     console.log(cellData);
-    if (choice.label === "Wolfram Language Script") {
-
+    if (choice.label === "Wolfram Language Package/Script") {
+      const serializedCells = cellData.filter(data => data.type === "Input").map(data => data.text + "\n");
+      let documentText = "(* ::Package:: *)\n\n" + serializedCells.join("\n\n");
+      const path = await vscode.window.showSaveDialog({
+        defaultUri: vscode.Uri.file((notebook.uri.fsPath || "").replace(/\.[^/.]+$/, ".wl")),
+        filters: {
+          "Wolfram Language Package": ["wl"],
+          "Wolfram Language Script": ["wls"],
+          "All Files": ["*"]
+        }
+      });
+      if (path) {
+        if (path.fsPath.match(/\.wls$/)) {
+          documentText = "#!/usr/bin/env wolframscript\n" + documentText;
+        }
+        this.writeFileChecked(path.fsPath, documentText);
+      }
     } else if (choice.label === "Wolfram Notebook") {
       this.statusBarExportItem.show();
       this.postMessageToKernel({
