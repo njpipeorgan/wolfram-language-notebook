@@ -21,7 +21,7 @@ If[$VersionNumber<12.0,
 ];
 If[TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[StyleBox[RowBox[{"\"1.\"","\[Times]",SuperscriptBox["10","\"-20\""]}],___],___],___]],
   $numberFormHasStyleBox=True;,
-  If[TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[RowBox[{"1.","\[Times]",SuperscriptBox["10","-20"]}],___],___]],
+  If[TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[RowBox[{"\"1.\"","\[Times]",SuperscriptBox["10","\"-20\""]}],___],___]],
     $numberFormHasStyleBox=False;,
     logError["Unexpected box form of real numbers."];Exit[];
   ];

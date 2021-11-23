@@ -119,12 +119,9 @@ renderHTMLimpl[str_String]:=Which[
         "<w>"<>StringReplace[renderHTMLescape@StringReplace[StringTake[str,{2,-2}],stringCharacterReplacements],"\n"->"</w><br/><w>"]<>"</w>",
       3<=StringLength[str]<=27&&StringContainsQ[str,"`"]&&StringContainsQ["0123456789",StringTake[str,1]],
         If[StringQ[#],
-          "<w>"<>If[$numberFormHasStyleBox,StringTake[#,{2,-2}],#]<>"</w>",
-          If[$numberFormHasStyleBox,
-            "<wsup><w></w><w>"<>StringTake[#[[1,1]],{2,-2}]<>"&#215;10</w><w><w>"<>StringTake[#[[1,3,2]],{2,-2}]<>"</w></w></wsup>",
-            "<wsup><w></w><w>"<>#[[1,1]]<>"&#215;10</w><w><w>"<>#[[1,3,2]]<>"</w></w></wsup>"
-          ]
-        ]&[If[$numberFormHasStyleBox,#[[1]],#]&@ToBoxes[NumberForm[ToExpression@str]][[1,1]]],
+          "<w>"<>StringTake[#,{2,-2}]<>"</w>",
+          "<wsup><w></w><w>"<>StringTake[#[[1,1]],{2,-2}]<>"&#215;10</w><w><w>"<>StringTake[#[[1,3,2]],{2,-2}]<>"</w></w></wsup>"
+        ]&[If[$numberFormHasStyleBox,#[[1,1,1]],#[[1,1]]]&@ToBoxes[NumberForm[ToExpression@str]]],
       True,
         "<w>"<>renderHTMLescape[str]<>"</w>"
     ]
