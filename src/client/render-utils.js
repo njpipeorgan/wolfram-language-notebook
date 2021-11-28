@@ -356,6 +356,9 @@ const handleFractionBox = (elem, style) => {
   return span;
 };
 const handleGridBox = (elem, style) => {
+  console.log(elem.children);
+  const childrenSpans = Array.from(elem.children).map(child => handleBox(child.firstChild, style));
+  console.log(`There are ${boxMutations.length} box mutations`);
   clearBoxMutations();
   const height = elem.offsetHeight;
   const middle = (style.fontMetric.baseline - style.fontMetric.middle) * style.fontSize;

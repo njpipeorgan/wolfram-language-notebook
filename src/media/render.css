@@ -270,17 +270,28 @@ wgrid {
   vertical-align: middle;
   margin: 0.1em;
   justify-items: stretch;
-  align-items: center;
+  align-items: baseline;
   border-top: solid 0px;
   border-left: solid 0px;
 }
 wgrid > w {
   display: block;
-  justify-content: center;
-  align-items: center;
+  text-align: center;
   padding: 0.1em 0.3em;
-  border-right: solid 0px;
-  border-bottom: solid 0px;
+}
+wgrid > w[style*="grid-row-start"] {
+  align-self: stretch
+}
+wgrid.outer-frame {
+  border: solid max(0.05em, 1px);
+}
+wgrid.all-frame {
+  border-left: solid max(0.05em, 1px);
+  border-top: solid max(0.05em, 1px);
+}
+wgrid.all-frame > w {
+  border-right: solid max(0.05em, 1px);
+  border-bottom: solid max(0.05em, 1px);
 }
 
 wsqrt {
@@ -324,6 +335,7 @@ wsqrt > :nth-child(2):empty {
 
 wsqrt > :nth-child(3) {
   border-top: solid var(--fraction-line-width);
+  padding: 0 0.15ch 0 0.15ch
 }
 
 wsqrt > :nth-child(4) {

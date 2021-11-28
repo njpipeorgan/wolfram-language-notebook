@@ -6,7 +6,7 @@
   "repository": {
     "url": "https://github.com/njpipeorgan/wolfram-language-notebook"
   },
-  "version": "0.0.1",
+  "version": "0.0.2",
   "preview": true,
   "icon": "icon.png",
   "engines": {
@@ -19,7 +19,13 @@
     }
   },
   "categories": [
-    "Notebooks"
+    "Notebooks",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "notebook",
+    "Wolfram Language",
+    "wolframscript"
   ],
   "activationEvents": [
     "onNotebook:wolfram-language-notebook",

@@ -47,7 +47,8 @@ localStyleNames=<|
   RadicalBox->{SurdForm},
   FrameBox->{Background,FrameMargins,ImageMargins,RoundingRadius},
   StyleBox->{TextAlignment,FontFamily,FontSize,FontWeight,FontSlant,FontTracking,FontVariations,FontColor,FontOpacity,Background},
-  PaneBox->{ImageSize}
+  PaneBox->{ImageSize},
+  GridBox->{GridBoxFrame}
 |>;
 inheritedStyleNames=<|
   RowBox->{},
@@ -191,10 +192,60 @@ renderHTMLimpl[RadicalBox[x_,y_,opt___]]:=renderWrapper[<|"head"->RadicalBox,"mu
 
 renderHTMLimpl[GridBox[{{"\[Piecewise]",rest_}},___]]:=renderHTMLimpl[RowBox[{"\[Piecewise]",rest}]]
 renderHTMLimpl[
-  GridBox[x_/;MatchQ[Dimensions[x,2,AllowedHeads->List],{_?Positive,_?Positive}],___]
-]:=renderWrapper[GridBox,<||>,
-  StringJoin["<wgrid",htmlClass[{mutableClassName}]," style=\"grid-template-columns:repeat(",ToString@Dimensions[x,2][[2]],",max-content);\">",
-    #,"</wgrid>"]&@Map["<w>"<>renderHTMLimpl[#]<>"</w>"&,x,{2}]]
+  GridBox[x_/;MatchQ[Dimensions[x,2,AllowedHeads->List],{_?Positive,_?Positive}],opts___]
+]:=renderWrapper[GridBox,<|opts|>,
+  Module[{dims=Dimensions[x,2],spanToBottom,spanToRight,visited,spanStyle,maxCol,maxRow,cellHTML,frame},
+    spanToBottom=ArrayPad[Map[#==="\[SpanFromAbove]"||#==="\[SpanFromBoth]"&,x,{2}],{{0,1},{0,0}},False][[2;;]];
+    spanToRight=ArrayPad[Map[#==="\[SpanFromLeft]"||#==="\[SpanFromBoth]"&,x,{2}],{{0,0},{0,1}},False][[;;,2;;]];
+    visited=ConstantArray[False,dims];
+    spanStyle=htmlStyle[AssociationThread[{"grid-row-start","grid-row-end","grid-column-start","grid-column-end"}->(ToString/@#)]]&;
+    frame=Which[
+      MissingQ[#],"",
+      #==={"ColumnsIndexed"->{{{1,-1},{1,-1}}->True}},"outer",
+      #==={"Columns"->{{True}},"Rows"->{{True}}},"all",
+      True,""
+    ]&@$localStyle[GridBoxFrame];
+    cellHTML=Table[
+      Which[
+        visited[[row,col]],
+          Nothing,
+        !spanToBottom[[row,col]]&&!spanToRight[[row,col]],
+          (* no span in either direction *)
+          "<w>"<>renderHTMLimpl[x[[row,col]]]<>"</w>",
+        !spanToRight[[row,col]],
+          (* only span vertically *)
+          maxRow=NestWhile[#+1&,row,spanToBottom[[#,col]]&];
+          visited[[row;;maxRow,col]]=True;
+          "<w"<>spanStyle[{row,maxRow+1,col,col+1}]<>">"<>renderHTMLimpl[x[[row,col]]]<>"</w>",
+        !spanToBottom[[row,col]],
+          (* only span horizontally *)
+          maxCol=NestWhile[#+1&,col,spanToRight[[row,#]]&];
+          visited[[row,col;;maxCol]]=True;
+          "<w"<>spanStyle[{row,row+1,col,maxCol+1}]<>">"<>renderHTMLimpl[x[[row,col]]]<>"</w>",
+        True,
+          (* possibly span in both directions *)
+          maxCol=NestWhile[#+1&,col,spanToRight[[row,#]]&];
+          maxRow=NestWhile[#+1&,row,And@@spanToBottom[[#,col;;maxCol]]&];
+          visited[[row;;maxRow,col;;maxCol]]=True;
+          "<w"<>spanStyle[{row,maxRow+1,col,maxCol+1}]<>">"<>renderHTMLimpl[x[[row,col]]]<>"</w>"
+      ]
+    ,{row,1,dims[[1]]}
+    ,{col,1,dims[[2]]}];
+    StringJoin["<wgrid",
+      htmlClass[{
+        mutableClassName,
+        If[frame==="outer","outer-frame",Nothing],
+        If[frame==="all","all-frame",Nothing]
+      }],
+      " style=\"grid-template-columns:repeat(",ToString@Dimensions[x,2][[2]],",max-content);\">",
+      #,"</wgrid>"
+    ]&@Flatten[cellHTML,1]
+  ]
+];
+
+(* ignore ItemBox for now *)
+renderHTMLimpl[ItemBox[x_,opts___]]:=renderWrapper[ItemBox,<||>,
+  renderHTMLimpl[x]]
 
 frameBoxStyleHandlers=<|
   "Background"->("background-color"->htmlColor[#]&),
