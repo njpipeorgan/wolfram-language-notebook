@@ -9,13 +9,13 @@
   "expression": {
    "patterns": [
     {
+     "include": "#newline-escape"
+    },
+    {
      "include": "#white-space"
     },
     {
      "include": "#escaped-invalid"
-    },
-    {
-     "include": "#newline-escape"
     },
     {
      "include": "#comment-block"
@@ -52,6 +52,10 @@
     }
    ]
   },
+  "newline-escape": {
+   "match": "\\\\\\r?\\n",
+   "name": "constant.character.escape.wolfram"
+  },
   "white-space": {
    "match": "(?:@whitespaceLike)+",
    "name": "entity.white.wolfram"
@@ -59,10 +63,6 @@
   "escaped-invalid": {
    "match": "(?:(?:\\\\(?:[0-7](?![0-7]{2}).{2}|\\.(?![0-9-a-fA-F]{2}).{2}|:(?![0-9-a-fA-F]{4}).{4}|\\|(?![0-9-a-fA-F]{6}).{6}))|(?:\\\\\\[.+?\\]))",
    "name": "invalid.illegal.wolfram"
-  },
-  "newline-escape": {
-   "match": "\\\\\\r?\\n",
-   "name": "constant.character.escape.wolfram"
   },
   "comment-block": {
    "begin": "\\(\\*",
