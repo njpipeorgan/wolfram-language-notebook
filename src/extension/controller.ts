@@ -492,7 +492,7 @@ export class WLNotebookController {
       if (value === "Try Again") {
         this.launchKernel();
       } else if (value === "Test in Terminal") {
-        this.launchKernel(undefined, true);
+        this.launchKernel(kernelName || undefined, true);
       } else if (value === "Edit configurations") {
         vscode.commands.executeCommand(
           "workbench.action.openSettings",
@@ -507,14 +507,13 @@ export class WLNotebookController {
     if (!(1000 < connectionTimeout)) {
       connectionTimeout = 1000; // milliseconds
     }
-    const localPortRanges = this.getConfig("kernel.localPorts");
     const kernelIsRemote = (kernel?.type === "remote");
     const kernelCommand = stringArgv(String(kernel?.command || ""));
     const sshCommand = stringArgv(String(kernel?.sshCommand || "ssh"));
     const sshHost = String(kernel?.sshHost || "");
     const sshCredentialType = String(kernel?.sshCredentialType);
     const sshCredential = String(kernel?.sshCredential || "none");
-    const kernelPort = kernelIsRemote ? this.getRandomPort(String(kernel?.ports)) : this.getRandomPort(String(localPortRanges));
+    const kernelPort = this.getRandomPort(String(kernel?.ports));
 
     console.log(`remote = ${kernelIsRemote}, port = ${kernelPort}`);
 
@@ -561,8 +560,6 @@ export class WLNotebookController {
         ...(testInTerminal ? [] : ["-code", kernelInitCommands])
       ];
     }
-    console.log("launchCommand = " + launchCommand);
-    console.log("launchArguments = ", launchArguments.toString().slice(0, 200));
 
     if (testInTerminal) {
       const terminal = vscode.window.createTerminal("Wolfram Language");
@@ -578,15 +575,15 @@ export class WLNotebookController {
 
       let isFirstMessage = true;
       this.kernel.stdout.on("data", async (data: Buffer) => {
-        if (this.connectingtoKernel) {
-          console.log("Received the following data from kernel:");
-          console.log(`${data.toString()}`);
-        }
         const message = data.toString();
         if (message.startsWith("<ERROR> ")) {
           // a fatal error
           vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
           return;
+        }
+        if (this.connectingtoKernel) {
+          console.log("Received the following data from kernel:");
+          console.log(`${data.toString()}`);
         }
         if (isFirstMessage) {
           if (message.startsWith("<INITIALIZATION STARTS>") || ("<INITIALIZATION STARTS>").startsWith(message)) {
@@ -694,7 +691,7 @@ export class WLNotebookController {
               wolframscript: {
                 type: "local",
                 command: "wolframscript",
-                port: "49152-65535"
+                ports: "49152-65535"
               }
             };
             config.update("kernel.configurations",
@@ -908,12 +905,12 @@ export class WLNotebookController {
     if (execution) {
       if (this.kernelConnected()) {
         // the kernel is ready
-        const text = execution.execution.cell.document.getText();
+        const text = execution.execution.cell.document.getText().replace(/\r\n/g, "\n");
         if (text) {
           this.postMessageToKernel({
             type: "evaluate-cell",
             uuid: execution.id,
-            text: execution.execution.cell.document.getText()
+            text: text
           });
           this.executionQueue.start(execution.id);
         } else {
@@ -974,13 +971,13 @@ export class WLNotebookController {
     const decoder = new util.TextDecoder();
     notebook.getCells().forEach(cell => {
       if (cell.kind === vscode.NotebookCellKind.Markup) {
-        cellData.push(...deserializeMarkup(cell.document.getText()));
+        cellData.push(...deserializeMarkup(cell.document.getText().replace(/\r\n/g, "\n")));
       } else if (cell.kind === vscode.NotebookCellKind.Code) {
         const executionOrder = cell.executionSummary?.executionOrder;
         cellData.push({
           type: "Input",
           label: executionOrder ? `In[${executionOrder}]:=` : "",
-          text: cell.document.getText()
+          text: cell.document.getText().replace(/\r\n/g, "\n")
         });
         cell.outputs.forEach(output => {
           const item = output.items.find(item => item.mime === "text/plain");

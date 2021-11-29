@@ -33,8 +33,11 @@ export const handleBoxes = root => {
     fontMetric: FontMeasure.getFontMetric("Consolas")
   };
   try {
-    handleBox(root.querySelector(".wexpr > :first-child"), baseStyle);
-    clearBoxMutations();
+    const element = root.querySelector(".wexpr > :first-child");
+    if (element) {
+      handleBox(element, baseStyle);
+      clearBoxMutations();
+    }
   } catch (e) {
     console.warn(e);
   }
@@ -356,9 +359,7 @@ const handleFractionBox = (elem, style) => {
   return span;
 };
 const handleGridBox = (elem, style) => {
-  console.log(elem.children);
   const childrenSpans = Array.from(elem.children).map(child => handleBox(child.firstChild, style));
-  console.log(`There are ${boxMutations.length} box mutations`);
   clearBoxMutations();
   const height = elem.offsetHeight;
   const middle = (style.fontMetric.baseline - style.fontMetric.middle) * style.fontSize;
