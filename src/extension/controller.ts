@@ -720,7 +720,7 @@ export class WLNotebookController {
             this.launchKernel(value.label.substring(15), testInTerminal);
           } else if (value.label === "$(new-file) Add a new kernel") {
             this.addNewKernel();
-          } else if ("$(notebook-edit) Edit kernel configurations in settings") {
+          } else if (value.label === "$(notebook-edit) Edit kernel configurations in settings") {
             vscode.commands.executeCommand(
               "workbench.action.openSettings",
               "wolframLanguageNotebook.kernel.configurations"
@@ -864,7 +864,7 @@ export class WLNotebookController {
         } else if (value?.label === "$(debug-restart) Restart") {
           this.quitKernel();
           this.restartAfterExitKernel = true;
-        } else if ("$(notebook-edit) Edit kernel configurations in settings") {
+        } else if (value?.label === "$(notebook-edit) Edit kernel configurations in settings") {
           vscode.commands.executeCommand(
             "workbench.action.openSettings",
             "wolframLanguageNotebook.kernel.configurations"
