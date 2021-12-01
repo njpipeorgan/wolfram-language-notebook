@@ -10,3 +10,7 @@ vsc-extension-quickstart.md
 **/*.map
 **/*.ts
 **/*.tsbuildinfo
+example/**
+local/**
+images/**
+.vsix
