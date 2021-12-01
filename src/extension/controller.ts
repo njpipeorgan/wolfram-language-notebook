@@ -468,7 +468,9 @@ export class WLNotebookController {
   private quitKernel() {
     this.executionQueue.clear();
     if (this.kernel) {
-      this.outputChannelAppendLine("Killing kernel");
+      if (this.kernel.pid) {
+        this.outputChannelAppendLine(`Killing kernel process, pid = ${this.kernel.pid}`);
+      }
       this.kernel.kill();
       this.kernel = undefined;
       this.connectingtoKernel = false;
@@ -589,6 +591,9 @@ export class WLNotebookController {
             isFirstMessage = false;
           } else {
             this.outputChannelAppendLine("The first message is expected to be <INITIALIZATION STARTS>, instead of the message above.");
+            if (message.startsWith("Mathematica ") || message.startsWith("Wolfram ")) {
+              this.outputChannelAppendLine("  It seems that a WolframKernel is launched, but wolframscript is required");
+            }
             this.quitKernel();
             this.showKernelLaunchFailed(kernelName);
             return;

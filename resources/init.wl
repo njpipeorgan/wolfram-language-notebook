@@ -92,7 +92,11 @@ logWrite["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[200]]];
 logWrite["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[200]]];
 Quiet@LinkClose[$kernel];
 
-$kernelCommandWSTP=First[$CommandLine]<>" -wstp";
+commandEscape[command_String]:=If[$OperatingSystem==="Windows",
+  If[StringContainsQ[command," "]&&!StringMatchQ[command,"\""~~__~~"\""],"\""<>command<>"\"",command],
+  StringReplace[command,(#->"\\"<>#&/@Characters@" $'\"\\#=[]!<>|;{}()*?&")]
+]
+$kernelCommandWSTP=commandEscape[First[$CommandLine]]<>" -wstp";
 logWrite["Using the following command to launch subkernel: "];
 logWrite[$kernelCommandWSTP];
 $kernel=LinkLaunch[$kernelCommandWSTP];
