@@ -562,6 +562,9 @@ export class WLNotebookController {
       ];
     }
 
+    this.outputChannelAppendLine(`launchCommand = ${String(launchCommand).slice(0, 200)}`);
+    this.outputChannelAppendLine(`launchArguments = ${String(launchArguments).slice(0, 200)}`);
+
     if (testInTerminal) {
       const terminal = vscode.window.createTerminal("Wolfram Language");
       this.disposables.push(terminal);
