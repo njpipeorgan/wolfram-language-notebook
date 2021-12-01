@@ -174,6 +174,7 @@ export class WLNotebookController {
   private notebookRendererMessaging: vscode.NotebookRendererMessaging;
   private statusBarKernelItem = new KernelStatusBarItem();
   private statusBarExportItem = new ExportNotebookStatusBarItem();
+  private outputChannel = vscode.window.createOutputChannel("Wolfram Language Notebook");
   private extensionPath: string = "";
   private disposables: any[] = [];
 
@@ -189,7 +190,7 @@ export class WLNotebookController {
     if (!this.extensionPath) {
       throw Error();
     }
-    console.log(`WLNotebookController(), this.extensionPath = ${this.extensionPath}`);
+    this.outputChannelAppendLine(`WLNotebookController(), this.extensionPath = ${this.extensionPath}`);
 
     this.controller = vscode.notebooks.createNotebookController(
       this.id, this.notebookType, this.label
@@ -218,7 +219,7 @@ export class WLNotebookController {
     this.controller.onDidChangeSelectedNotebooks(({ notebook, selected }) => {
       if (selected) {
         this.selectedNotebooks.add(notebook);
-        console.log(`The controller is selected for a notebook ${notebook.uri.fsPath}`);
+        this.outputChannelAppendLine(`The controller is selected for a notebook ${notebook.uri.fsPath}`);
         if (this.selectedNotebooks.size === 1 && !this.kernelConnected()) {
           // when the controller is selected for the first time
           const defaultKernel = this.getConfig("kernel.connectOnOpeningNotebook");
@@ -228,9 +229,9 @@ export class WLNotebookController {
         }
       } else {
         this.selectedNotebooks.delete(notebook);
-        console.log(`The controller is unselected for a notebook ${notebook.uri.fsPath}`);
+        this.outputChannelAppendLine(`The controller is unselected for a notebook ${notebook.uri.fsPath}`);
       }
-      console.log(`There are ${this.selectedNotebooks.size} notebook(s) for which the controller is selected.`);
+      this.outputChannelAppendLine(`There are ${this.selectedNotebooks.size} notebook(s) for which the controller is selected.`);
       if (this.selectedNotebooks.size === 0 && this.getConfig("kernel.quitAutomatically")) {
         // when the last notebook was closed, and the user choose to quit kernel automatically
         this.quitKernel();
@@ -253,13 +254,12 @@ export class WLNotebookController {
     }));
     this.disposables.push(this.statusBarKernelItem);
     this.disposables.push(this.statusBarExportItem);
+    this.disposables.push(this.outputChannel);
 
     this.controller.dispose = () => {
       this.quitKernel();
-      console.log("controller.disposed()");
-      console.log(`this.disposables.length = ${this.disposables.length}`);
+      this.outputChannelAppendLine(`Notebook controller is disposed; there are ${this.disposables.length} disposables.`);
       this.disposables.forEach(item => {
-        console.log(item);
         item.dispose();
       });
     };
@@ -267,6 +267,10 @@ export class WLNotebookController {
 
   getController() {
     return this.controller;
+  }
+
+  private outputChannelAppendLine(str: string) {
+    this.outputChannel.appendLine("[" + new Date().toUTCString() + "] " + str);
   }
 
   private getConfig(key: string) {
@@ -300,9 +304,8 @@ export class WLNotebookController {
   private postMessageToKernel(message: any) {
     if (this.socket !== undefined) {
       this.socket.send(typeof message === 'string' ? message : JSON.stringify(message));
-      // console.log("message posted " + (typeof message === 'string' ? message : JSON.stringify(message)));
     } else {
-      console.log("The socket is not available; cannot post the message.");
+      this.outputChannelAppendLine("The socket is not available; cannot post the message.");
     }
   }
 
@@ -335,24 +338,18 @@ export class WLNotebookController {
   private async handleMessageFromKernel() {
     while (true) {
       let [message] = await this.socket.receive().catch(() => {
-        if (this.kernel === undefined && this.socket === undefined) {
-          console.log("Failed to receive messages from the kernel because the kernel has been disconnected.");
-        } else {
-          console.log("Failed to receive messages with:");
-          console.log({ kernel: this.kernel, socket: this.socket });
-        }
-        return [Error("Failed to receive messages.")];
+        this.outputChannelAppendLine(`Failed to receive messages from the kernel, kernelConnected = ${this.kernelConnected()}.`);
+        return [new Error("receive-message")];
       });
       if (message instanceof Error) {
-        console.log(message);
         return;
       }
       message = Buffer.from(message).toString("utf-8");
       try {
         message = JSON.parse(message);
       } catch (error) {
-        console.log("Failed to parse the following message:");
-        console.log(message);
+        this.outputChannelAppendLine("Failed to parse the following message:");
+        this.outputChannelAppendLine(message);
         continue;
       }
 
@@ -408,7 +405,6 @@ export class WLNotebookController {
                 match[3],
                 ...match[4].split(", ").slice(1)
               ].filter(c => (c.length > 0));
-              // console.log(`The packet is a ChoiceDialog, the choices are ${choices}.`);
             }
           }
           if (choices) {
@@ -443,7 +439,8 @@ export class WLNotebookController {
         case "update-symbol-usages-progress":
           break;
         default:
-        // console.log("message has an unexpect type", message);
+          this.outputChannelAppendLine("The following message has an unexpect type:");
+          this.outputChannelAppendLine(JSON.stringify(message));
       }
     }
   }
@@ -471,13 +468,13 @@ export class WLNotebookController {
   private quitKernel() {
     this.executionQueue.clear();
     if (this.kernel) {
-      console.log("Killing kernel");
+      this.outputChannelAppendLine("Killing kernel");
       this.kernel.kill();
       this.kernel = undefined;
       this.connectingtoKernel = false;
     }
     if (this.socket !== undefined) {
-      console.log("Closing socket");
+      this.outputChannelAppendLine("Closing socket");
       this.socket.close();
       this.socket = undefined;
     }
@@ -485,6 +482,7 @@ export class WLNotebookController {
   };
 
   private showKernelLaunchFailed(kernelName: string = "") {
+    this.outputChannel.show();
     vscode.window.showErrorMessage(
       `Failed to connect to the kernel${kernelName ? " \"" + kernelName + "\"" : ""}.`,
       "Try Again", "Test in Terminal", "Edit configurations"
@@ -503,9 +501,10 @@ export class WLNotebookController {
   }
 
   private launchKernelWithName(kernelName: string, kernel: any, testInTerminal: boolean = false) {
+    this.outputChannel.clear();
     let connectionTimeout = this.getConfig("kernel.connectionTimeout") as number;
     if (!(1000 < connectionTimeout)) {
-      connectionTimeout = 1000; // milliseconds
+     connectionTimeout = 1000; // milliseconds
     }
     const kernelIsRemote = (kernel?.type === "remote");
     const kernelCommand = stringArgv(String(kernel?.command || ""));
@@ -515,7 +514,7 @@ export class WLNotebookController {
     const sshCredential = String(kernel?.sshCredential || "none");
     const kernelPort = this.getRandomPort(String(kernel?.ports));
 
-    console.log(`remote = ${kernelIsRemote}, port = ${kernelPort}`);
+    this.outputChannelAppendLine(`kernelIsRemote = ${kernelIsRemote}, kernelPort = ${kernelPort}`);
 
     const kernelInitPath = path.join(this.extensionPath, 'resources', 'init-compressed.txt');
     const kernelRenderInitPath = path.join(this.extensionPath, 'resources', 'render-html.wl');
@@ -582,13 +581,14 @@ export class WLNotebookController {
           return;
         }
         if (this.connectingtoKernel) {
-          console.log("Received the following data from kernel:");
-          console.log(`${data.toString()}`);
+          this.outputChannelAppendLine("Received the following data from kernel:");
+          this.outputChannelAppendLine(`${data.toString()}`);
         }
         if (isFirstMessage) {
           if (message.startsWith("<INITIALIZATION STARTS>") || ("<INITIALIZATION STARTS>").startsWith(message)) {
             isFirstMessage = false;
           } else {
+            this.outputChannelAppendLine("The first message is expected to be <INITIALIZATION STARTS>, instead of the message above.");
             this.quitKernel();
             this.showKernelLaunchFailed(kernelName);
             return;
@@ -596,7 +596,6 @@ export class WLNotebookController {
         }
         const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
         if (match) {
-          // console.log(`match = ${match}`);
           this.socket = new zmq.Pair({ linger: 0 });
           this.socket.connect("tcp://" + match[1]);
           const rand = Math.floor(Math.random() * 1e9).toString();
@@ -605,16 +604,16 @@ export class WLNotebookController {
             let timer: any;
             const [received] = await Promise.race([
               this.socket.receive(),
-              new Promise(res => timer = setTimeout(() => res([Error("timeout")]), connectionTimeout))
+              new Promise(res => timer = setTimeout(() => res([new Error("timeout")]), connectionTimeout))
             ]).finally(() => clearTimeout(timer));
             if (received instanceof Error) {
               throw received;
             }
-            console.log("Received the following test message from kernel:");
-            console.log(`${received.toString()}`);
+            this.outputChannelAppendLine("Received the following test message from kernel:");
+            this.outputChannelAppendLine(`${received.toString()}`);
             const message = JSON.parse(received.toString());
             if (message["type"] !== "test" || message["text"] !== rand) {
-              throw Error("wrong message");
+              throw new Error("test");
             }
             this.evaluateFrontEnd(kernelRenderInitString, false);
             this.postConfigToKernel();
@@ -625,18 +624,26 @@ export class WLNotebookController {
             } catch {}
             this.checkoutExecutionQueue();
           } catch (error) {
-            // console.log("Catched an error when connecting to the kernel:", error);
+            if (error instanceof Error) {
+              if (error.message === "timeout") {
+                this.outputChannelAppendLine("The kernel took too long to respond through the ZeroMQ link.");
+              } else if (error.message === "test") {
+                this.outputChannelAppendLine("The kernel responded with a wrong test message, as above");
+                this.outputChannelAppendLine("  The expected message should contain: " + JSON.stringify({type: "test", text: rand}));
+              }
+            }
             this.quitKernel();
+            this.showKernelLaunchFailed(kernelName);
           }
         }
       });
       this.kernel.stderr.on("data", (data: Buffer) => {
-        console.log("Received the following data from kernel (stderr):");
-        console.log(`${data.toString()}`);
+        this.outputChannelAppendLine("Received the following data from kernel (stderr):");
+        this.outputChannelAppendLine(`${data.toString()}`);
       });
       this.kernel.on("exit", (code: number, signal: string) => {
         this.quitKernel();
-        console.log(`Process exited with code ${code} and signal ${signal}.`);
+        this.outputChannelAppendLine(`Process exited with code ${code} and signal ${signal}.`);
         if (this.restartAfterExitKernel) {
           this.restartAfterExitKernel = false;
           this.launchKernel();
@@ -645,6 +652,7 @@ export class WLNotebookController {
         }
       });
       this.kernel.on("error", () => {
+        this.outputChannelAppendLine("Error occured in spwaning the kernel process, the command may not exist.");
         this.quitKernel();
         this.showKernelLaunchFailed(kernelName);
       });
@@ -828,12 +836,10 @@ export class WLNotebookController {
       { [name]: { type, command, ports } };
 
     const config = vscode.workspace.getConfiguration("wolframLanguageNotebook");
-    console.log(`config.get("kernel.configurations") = ${config.get("kernel.configurations")}`);
     const update = await config.update("kernel.configurations",
       { ...config.get("kernel.configurations"), ...newKernel },
       vscode.ConfigurationTarget.Global
     );
-    console.log(`update = ${update}`);
 
     vscode.window.showInformationMessage("A new kernel has been added.", "Start this kernel", "Dismiss").then(value => {
       if (value === "Start this kernel") {
@@ -876,7 +882,6 @@ export class WLNotebookController {
       const id = this.executionQueue.push(execution);
       const self = this;
       execution.token.onCancellationRequested(() => {
-        console.log("onCancellationRequested()");
         self.abortEvaluation(id);
       });
     }
@@ -884,7 +889,6 @@ export class WLNotebookController {
   }
 
   private abortEvaluation(id: string) {
-    console.log(`abortEvaluation(), id = ${id}`);
     if (!this.executionQueue.empty()) {
       const execution = this.executionQueue.find(id);
       if (execution) {
@@ -928,12 +932,10 @@ export class WLNotebookController {
   async exportNotebook(uri: vscode.Uri) {
     let notebook: vscode.NotebookDocument | undefined;
     this.selectedNotebooks.forEach(current => {
-      console.log(current.uri.toString());
       if (current.uri.toString() === uri.toString()) {
         notebook = current;
       }
     });
-    console.log(uri.toString(), notebook);
     if (!notebook) {
       return;
     }
@@ -989,7 +991,7 @@ export class WLNotebookController {
         });
       }
     });
-    console.log(cellData);
+    
     if (choice.label === "Wolfram Language Package/Script") {
       const serializedCells = cellData.filter(data => data.type === "Input").map(data => data.text + "\n");
       let documentText = "(* ::Package:: *)\n\n" + serializedCells.join("\n\n");

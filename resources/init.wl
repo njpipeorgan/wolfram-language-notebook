@@ -88,12 +88,17 @@ $outputName="Null";
 $messagedebug=Null;
 
 
-logWriteDebug["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[500]]];
-logWriteDebug["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[500]]];
+logWrite["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[200]]];
+logWrite["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[200]]];
 Quiet@LinkClose[$kernel];
-$kernel=LinkLaunch[First[$CommandLine] <> " -wstp"];
+
+$kernelCommandWSTP=First[$CommandLine]<>" -wstp";
+logWrite["Using the following command to launch subkernel: "];
+logWrite[$kernelCommandWSTP];
+$kernel=LinkLaunch[$kernelCommandWSTP];
 $preemptive=LinkCreate[];
 $processID=Null;
+
 If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject||(!
   TimeConstrained[
     While[!(LinkReadyQ[$kernel]),Pause[0.1];];
@@ -115,12 +120,12 @@ If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject||(!
       ]]];
       $processID=LinkRead[$kernel][[1]];
     ];
-    logWrite["Kernel connected; $preemptive="<>ToString@$preemptive<>", $processID="<>ToString[$processID]];
+    logWrite["Subkernel launched; $preemptive="<>ToString@$preemptive<>", $processID="<>ToString[$processID]];
     True,
     30.0,False
   ]),
-  logWrite["Failed to launch kernel; $kernel="<>ToString[$kernel]];
-  Quit[]
+  logWrite["Failed to launch computation kernel; $kernel="<>ToString[$kernel]];
+  logError["Failed to launch computation kernel."];Exit[];
 ];
 Unprotect[EnterExpressionPacket,EvaluatePacket,ReturnExpressionPacket,ReturnPacket,EnterTextPacket];
 SetAttributes[{EnterExpressionPacket,EvaluatePacket,ReturnExpressionPacket,ReturnPacket,EnterTextPacket},{HoldAllComplete}];
