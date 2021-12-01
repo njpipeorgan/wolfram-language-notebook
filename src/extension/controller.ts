@@ -655,8 +655,8 @@ export class WLNotebookController {
           vscode.window.showWarningMessage(`Kernel "${kernelName}" has been disconnected.`);
         }
       });
-      this.kernel.on("error", () => {
-        this.outputChannelAppendLine("Error occured in spwaning the kernel process, the command may not exist.");
+      this.kernel.on("error", (err: Error) => {
+        this.outputChannelAppendLine(`Error occured in spwaning the kernel process: \n${err}`);
         this.quitKernel();
         this.showKernelLaunchFailed(kernelName);
       });
