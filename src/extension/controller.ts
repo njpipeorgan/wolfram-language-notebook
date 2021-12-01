@@ -490,7 +490,7 @@ export class WLNotebookController {
       "Try Again", "Test in Terminal", "Edit configurations"
     ).then(value => {
       if (value === "Try Again") {
-        this.launchKernel();
+        this.launchKernel(kernelName || undefined);
       } else if (value === "Test in Terminal") {
         this.launchKernel(kernelName || undefined, true);
       } else if (value === "Edit configurations") {
