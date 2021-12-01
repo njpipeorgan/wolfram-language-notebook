@@ -110,7 +110,7 @@ If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject||(!
     Module[{packet=LinkRead[$kernel]},
       If[Head[packet]===InputNamePacket,
         $inputName=packet[[1]];,
-        logWrite["The first packet is not a InputNamePacket; packet="<>ToString[packet]];
+        logError["The first packet is not a InputNamePacket; packet="<>ToString[packet]];Exit90;
       ];
     ];
     (* set up preemptive link; get kernel process id *)

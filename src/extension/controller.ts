@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import * as vscode from "vscode";
-import stringArgv from "string-argv";
 import * as uuid from "uuid";
 const util = require("util");
 const path = require("path");
@@ -509,8 +508,8 @@ export class WLNotebookController {
      connectionTimeout = 1000; // milliseconds
     }
     const kernelIsRemote = (kernel?.type === "remote");
-    const kernelCommand = stringArgv(String(kernel?.command || ""));
-    const sshCommand = stringArgv(String(kernel?.sshCommand || "ssh"));
+    const kernelCommand = String(kernel?.command || "");
+    const sshCommand = String(kernel?.sshCommand || "ssh");
     const sshHost = String(kernel?.sshHost || "");
     const sshCredentialType = String(kernel?.sshCredentialType);
     const sshCredential = String(kernel?.sshCredential || "none");
@@ -542,22 +541,19 @@ export class WLNotebookController {
     let launchCommand = "";
     let launchArguments = [""];
     if (kernelIsRemote) {
-      launchCommand = sshCommand[0] || "ssh";
+      launchCommand = sshCommand || "ssh";
       launchArguments = [
-        ...sshCommand.splice(1),
         "-tt",
         ...(sshCredentialType === "key" ? ["-i", sshCredential] : []),
         "-o", "ExitOnForwardFailure=yes",
         "-L", `127.0.0.1:${kernelPort}:127.0.0.1:${kernelPort}`,
         sshHost,
-        kernelCommand[0] || "wolframscript",
-        ...kernelCommand.splice(1),
+        kernelCommand || "wolframscript",
         ...(testInTerminal ? [] : ["-code", kernelInitCommands])
       ];
     } else {
-      launchCommand = kernelCommand[0] || "wolframscript";
+      launchCommand = kernelCommand || "wolframscript";
       launchArguments = [
-        ...kernelCommand.splice(1),
         ...(testInTerminal ? [] : ["-code", kernelInitCommands])
       ];
     }
