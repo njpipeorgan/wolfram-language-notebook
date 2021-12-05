@@ -47,6 +47,10 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
     try {
       notebook = JSON.parse(decoder.decode(content)) as WLNotebookData;
       for (let cell of notebook.cells) {
+        if (cell.executionSummary) {
+          // execution summary is session-specific
+          delete cell.executionSummary;
+        }
         if (cell.outputs) {
           for (let output of cell.outputs) {
             for (let item of output.items) {

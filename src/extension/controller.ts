@@ -388,6 +388,9 @@ export class WLNotebookController {
           }
           break;
         case "evaluation-done":
+          if (execution && !execution.hasOutput) {
+            execution.execution.replaceOutput([]);
+          }
           this.executionQueue.end(id, true);
           this.checkoutExecutionQueue();
           break;
@@ -409,13 +412,21 @@ export class WLNotebookController {
             }
           }
           if (choices) {
-            const input = await vscode.window.showQuickPick(choices, { placeHolder: prompt });
+            const input = await vscode.window.showQuickPick(choices, {
+              title: "The kernel requested a choice",
+              placeHolder: prompt,
+              ignoreFocusOut: true
+            });
             this.postMessageToKernel({
               type: "reply-input-string",
               text: input || ""
             });
           } else {
-            const input = await vscode.window.showInputBox({ placeHolder: prompt });
+            const input = await vscode.window.showInputBox({
+              title: "The kernel requested an input",
+              placeHolder: prompt,
+              ignoreFocusOut: true
+            });
             this.postMessageToKernel({
               type: (message.type === "request-input" ? "reply-input" : "reply-input-string"),
               text: input || ""
