@@ -240,6 +240,12 @@ wgraph > img {
   left: 0;
   image-rendering: auto;
 }
+body.vscode-dark wgraph > img {
+  filter: invert(1) hue-rotate(180deg);
+}
+body.vscode-high-contrast wgraph > img {
+  filter: invert(1) hue-rotate(180deg);
+}
 wgraph > .resize-widget {
   display: none;
   position: absolute;

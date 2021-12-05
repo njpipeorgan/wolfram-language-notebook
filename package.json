@@ -144,6 +144,11 @@
           "default": true,
           "description": "Store the output expressions (Wolfram Language) in the notebook. They are required when export cells with output to .nb files."
         },
+        "wolframLanguageNotebook.rendering.renderAsImages": {
+          "type": "boolean",
+          "default": false,
+          "description": "Render all output expressions as images."
+        },
         "wolframLanguageNotebook.rendering.outputSizeLimit": {
           "type": "integer",
           "default": 5000,

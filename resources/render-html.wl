@@ -371,3 +371,6 @@ renderHTMLimpl[renderingFailed[reason_String]]:=renderWrapper[<|"head"->""|>,<||
 renderHTML[expr_]:=renderWrapper[Expression,<||>,
     StringJoin["<div class=\"wexpr\">",renderHTMLimpl[expr],"</div>"]]
 
+renderImage[expr_]:=renderWrapper[Expression,<||>,
+    StringJoin["<div class=\"wexpr\">",renderHTMLimage[expr],"</div>"]]
+

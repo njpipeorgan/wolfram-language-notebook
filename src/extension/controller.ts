@@ -464,7 +464,8 @@ export class WLNotebookController {
       "rendering.boxesTimeLimit",
       "rendering.htmlTimeLimit",
       "rendering.htmlMemoryLimit",
-      "rendering.imageWithTransparency"
+      "rendering.imageWithTransparency",
+      "rendering.renderAsImages"
     ];
     const renderingConfig = vscode.workspace.getConfiguration("wolframLanguageNotebook");
     let config: { [key: string]: any } = {};

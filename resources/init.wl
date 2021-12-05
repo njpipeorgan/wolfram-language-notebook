@@ -53,7 +53,8 @@ $config=<|
   "boxesTimeLimit"-><|"value"->5000(*ms*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "htmlTimeLimit"-><|"value"->10000(*ms*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "htmlMemoryLimit"-><|"value"->200(*MB*),"requires"->(Head[#]===Integer&&#>0&)|>,
-  "imageWithTransparency"-><|"value"->False,"requires"->(#===True||#===False&)|>
+  "imageWithTransparency"-><|"value"->False,"requires"->(#===True||#===False&)|>,
+  "renderAsImages"-><|"value"->False,"requires"->(#===True||#===False&)|>
 |>;
 
 
@@ -181,7 +182,7 @@ handleOutput[]:=Module[{},
         logWriteDebug["htmlTimeLimit = "<>ToString[$getKernelConfig["htmlTimeLimit"]/1000.0]<>" seconds"];
         html=TimeConstrained[
           MemoryConstrained[
-            renderHTML[boxes],
+            If[$getKernelConfig["renderAsImages"],renderImage,renderHTML][boxes],
             $getKernelConfig["htmlMemoryLimit"]*2^20,
             renderHTML@renderingFailed["Rendering to HTML took much memory."]
           ],
