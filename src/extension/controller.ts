@@ -337,7 +337,9 @@ export class WLNotebookController {
   private async handleMessageFromKernel() {
     while (true) {
       let [message] = await this.socket.receive().catch(() => {
-        this.outputChannelAppendLine(`Failed to receive messages from the kernel, kernelConnected = ${this.kernelConnected()}.`);
+        if (this.kernelConnected()) {
+          this.outputChannelAppendLine(`Failed to receive messages from the kernel, but the kernel is connected.`);
+        }
         return [new Error("receive-message")];
       });
       if (message instanceof Error) {
@@ -470,7 +472,7 @@ export class WLNotebookController {
       if (this.kernel.pid) {
         this.outputChannelAppendLine(`Killing kernel process, pid = ${this.kernel.pid}`);
       }
-      this.kernel.kill();
+      this.kernel.kill("SIGKILL");
       this.kernel = undefined;
       this.connectingtoKernel = false;
     }

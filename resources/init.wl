@@ -96,7 +96,7 @@ commandEscape[command_String]:=If[$OperatingSystem==="Windows",
   If[StringContainsQ[command," "]&&!StringMatchQ[command,"\""~~__~~"\""],"\""<>command<>"\"",command],
   StringReplace[command,(#->"\\"<>#&/@Characters@" $'\"\\#=[]!<>|;{}()*?&")]
 ]
-$kernelCommandWSTP=commandEscape[First[$CommandLine]]<>" -wstp";
+$kernelCommandWSTP=commandEscape[First[$CommandLine]]<>" -noicon -wstp";
 logWrite["Using the following command to launch subkernel: "];
 logWrite[$kernelCommandWSTP];
 $kernel=LinkLaunch[$kernelCommandWSTP];
