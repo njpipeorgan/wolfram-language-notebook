@@ -479,8 +479,9 @@ export class WLNotebookController {
   };
 
   private quitKernel() {
-    this.executionQueue.clear();
     if (this.kernel) {
+      // clear executionQueue only when the kernel was connected
+      this.executionQueue.clear();
       if (this.kernel.pid) {
         this.outputChannelAppendLine(`Killing kernel process, pid = ${this.kernel.pid}`);
       }
