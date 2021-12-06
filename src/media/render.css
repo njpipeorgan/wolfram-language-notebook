@@ -148,23 +148,22 @@ wfrac > :last-child {
 }
 wfrac > :last-child > :first-child {
   height: calc(1em * var(--line-height));
-  margin-top: calc(-0.6em * var(--line-height));
+  margin-top: calc(-0.4em * var(--line-height));
   margin-bottom: calc(-0.4em * var(--line-height));
   margin-left: -0.2ch;
   margin-right: -0.2ch;
-  border-top: solid var(--fraction-line-width);
   transform: translateY(calc(0.6em * var(--line-height)));
 }
 wfrac > :last-child > :last-child {
   display: block;
   z-index: 1;
 }
-wfrac > :last-child > :first-child {
-  border-top: solid var(--fraction-line-width);
-}
 wfrac.script > :last-child > :last-child,
 wfrac.script > :first-child {
   font-size: var(--script-font-size);
+}
+wfrac > :last-child > :first-child {
+  border-top: solid  var(--fraction-line-width);
 }
 wfrac.script > :last-child > :first-child {
   border-top: solid calc(0.71 * var(--fraction-line-width));
@@ -240,9 +239,7 @@ wgraph > img {
   left: 0;
   image-rendering: auto;
 }
-body.vscode-dark wgraph > img {
-  filter: invert(1) hue-rotate(180deg);
-}
+body.vscode-dark wgraph > img,
 body.vscode-high-contrast wgraph > img {
   filter: invert(1) hue-rotate(180deg);
 }
