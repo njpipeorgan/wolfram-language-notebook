@@ -93,18 +93,23 @@ export function deserializeMarkup(markupText: string) {
   const cellData: {
     type: string; // Title, Section, Text, Input, ...
     label: string; // In[...]:= , Out[...]=
-    text: string;
+    text: string | any[];
   }[] = [];
   const md = new MarkdownIt({
     html: true
   });
   const html = md.render(markupText);
   const doc = htmlparser2.parseDocument(html);
+  
+  const paragraphTags = new Set([
+    "blockquote", "div", "h1", "h2", "h3", "h4", "h5", "h6", "li", "ol", "p", "pre", "ul"
+  ]);
 
-  let tagStack: string[] = [];
-  let isItemParagraphStack: boolean[] = [];
-
-  const handleContent = (element: any, pre: boolean = false) => {
+  const handleContent = (element: any, pre: boolean = false, textOnly: boolean = false) => {
+    const handleChildren = (pre: boolean, textOnly: boolean) => {
+      const contents = (element?.children || []).map((e: any) => handleContent(e, pre, textOnly));
+      return textOnly ? contents.join("") : contents;
+    };
     if (typeof element === "string") {
       return element;
     } else if (element.type === "text") {
@@ -113,8 +118,45 @@ export function deserializeMarkup(markupText: string) {
       return "\n";
     } else if (element.name === "li") {
       return domutils.getOuterHTML(element);
+    } else if (!textOnly) {
+      switch (element.name) {
+        case "a":
+          return {
+            type: "Hyperlink",
+            children: handleChildren(pre, textOnly),
+            link: element?.attribs?.href || ""
+          };
+        case "button":
+          return {
+            type: "Button",
+            children: handleChildren(pre, textOnly),
+            link: element?.attribs?.onclick || ""
+          };
+        case "code":
+          return { type: "Code", children: handleChildren(pre, true) };
+        case "em":
+        case "i":
+          return { type: "Italic", children: handleChildren(pre, textOnly) };
+        case "strong":
+          return { type: "Bold", children: handleChildren(pre, textOnly) };
+        case "s":
+          return { type: "StrikeThrough", children: handleChildren(pre, textOnly) };
+        case "small":
+          return { type: "Smaller", children: handleChildren(pre, textOnly) };
+        case "sup":
+          return { type: "Superscript", children: handleChildren(pre, true) };
+        case "sub":
+          return { type: "Subscript", children: handleChildren(pre, true) };
+        case "img":
+          return {
+            type: "Image",
+            children: element?.attribs?.title || "[Image]",
+            link: element?.attribs?.src || ""
+          };
+      }
+      return handleChildren(pre, textOnly);
     } else {
-      return (element?.children || []).map((e: any) => handleContent(e, pre)).join("");
+      return handleChildren(pre, true);
     }
   };
 
@@ -126,11 +168,21 @@ export function deserializeMarkup(markupText: string) {
     "blockquote": ["blockquote", "pre"]
   };
 
+  let tagStack: string[] = [];
+  let isItemParagraphStack: boolean[] = [];
+  let ignoreNextNChildren = 0;
+
   const handleElement = (element: any, nonTerminalTags: string[]) => {
+    if (ignoreNextNChildren > 0) {
+      --ignoreNextNChildren;
+      return;
+    }
     if (nonTerminalTags.indexOf(element?.name || "") >= 0) {
       tagStack.push(element.name);
       isItemParagraphStack.push(false);
+      ignoreNextNChildren = 0;
       element.children.map((e: any) => handleElement(e, nonTerminalTagRules[element?.name] || []));
+      ignoreNextNChildren = 0;
       tagStack.pop();
       isItemParagraphStack.pop();
     } else {
@@ -150,7 +202,7 @@ export function deserializeMarkup(markupText: string) {
         });
       } else if (elementTag === "code") {
         cellData.push({
-          type: "CodeText",
+          type: "Text",
           label: "",
           text: handleContent(element, true)
         });
@@ -171,11 +223,32 @@ export function deserializeMarkup(markupText: string) {
               const type = ["Item", "Subitem", "Subsubitem"][listLevel - 1] + (
                 isItemParagraph ? "Paragraph" : isOrderedList ? "Numbered" : "");
               isItemParagraphStack[isItemParagraphStack.length - 1] = true;
-              cellData.push({
-                type: type,
-                label: "",
-                text: handleContent(element)
-              });
+              if (element.type === "tag" && paragraphTags.has(element.name)) {
+                cellData.push({
+                  type: type,
+                  label: "",
+                  text: handleContent(element)
+                });
+              } else {
+                let groupedElements: any[] = [];
+                ignoreNextNChildren = -1;
+                while (element?.type === "text" || (
+                  element?.type === "tag" && !paragraphTags.has(element?.name)
+                )) {
+                  ++ignoreNextNChildren;
+                  groupedElements.push(element);
+                  element = element.next;
+                }
+                cellData.push({
+                  type: type,
+                  label: "",
+                  text: handleContent({
+                    type: "tag",
+                    name: "p",
+                    children: groupedElements
+                  })
+                });
+              }
             }
             break;
           }
@@ -190,12 +263,14 @@ export function deserializeMarkup(markupText: string) {
           }
         }
       }
-      
     }
   };
 
   doc.children.map((element: any) => {
-    handleElement(element, nonTerminalTagRules[""]);
+    try {
+      handleElement(element, nonTerminalTagRules[""]);
+    } catch (_) {
+    }
   });
 
   return cellData;

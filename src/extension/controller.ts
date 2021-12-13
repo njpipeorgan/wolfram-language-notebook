@@ -987,7 +987,7 @@ export class WLNotebookController {
     const cellData: {
       type: string; // Title, Section, Text, Input, ...
       label: string; // In[...]:= , Out[...]=
-      text: string;
+      text: string | any[];
     }[] = [];
     const decoder = new util.TextDecoder();
     notebook.getCells().forEach(cell => {

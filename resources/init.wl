@@ -301,8 +301,24 @@ handleMessage[]:=Module[{},
           logWrite["Syntax error in the previous front end evaluation: "<>$message["text"]];
         ],
       "request-export-notebook",
-        Module[{type,text,cellLabel,boxes,notebook,escape},
+        Module[{type,text,cellLabel,boxes,notebook,escape,fragments,parseElement},
           escape=ToString[#,InputForm,CharacterEncoding->"ASCII"]&;
+          parseElement[list_List]:=parseElement/@list;
+          parseElement[text_String]:=text;
+          parseElement[obj_Association]:=Switch[obj["type"],
+            "Hyperlink",ButtonBox[parseElement@obj["children"],BaseStyle->"Hyperlink",ButtonData->{URL[obj["link"]],None}],
+            "Image",ButtonBox[parseElement@obj["children"],BaseStyle->"Hyperlink",Appearance->"Palette",ButtonData->{URL[obj["link"]],None}],
+            "Button",ButtonBox[parseElement@obj["children"],BaseStyle->"Hyperlink",Appearance->"DialogBox",ButtonData->{URL[obj["link"]],None}],
+            "Italic",StyleBox[parseElement@obj["children"],FontSlant->Italic],
+            "Bold",StyleBox[parseElement@obj["children"],FontWeight->Bold],
+            "StrikeThrough",StyleBox[parseElement@obj["children"],FontVariations->{"StrikeThrough"->True}],
+            "Superscript",Cell[BoxData[FormBox[SuperscriptBox["",parseElement@obj["children"]], TraditionalForm]],FormatType->TraditionalForm],
+            "Subscript",Cell[BoxData[FormBox[SubscriptBox["",parseElement@obj["children"]], TraditionalForm]],FormatType->TraditionalForm],
+            "Smaller",StyleBox[parseElement@obj["children"],FontSize->Small],
+            "Code",StyleBox[parseElement@obj["children"],FontFamily->"Consolas",FontColor->Darker[Red]],
+            _,"Invalid object type["<>ToString[obj,InputForm]<>"]"
+          ];
+          parseElement[x_]:="Invalid element["<>ToString[x,InputForm]<>"]";
           notebook=Table[
             type=ToString@Lookup[cell,"type","Text"];
             text=Lookup[cell,"text",""];
@@ -331,7 +347,8 @@ handleMessage[]:=Module[{},
               "HorizontalLine",
                 "Cell[\"\",\"Text\",Editable->False,Selectable->False,ShowCellBracket->False,CellFrame->{{0,0},{0,1}},CellMargins->{{0,0},{1,1}},CellElementSpacings->{\"CellMinHeight\"->1},CellFrameMargins->0,CellSize->{Inherited,3}]",
               _,
-                "Cell[TextData["<>escape[text]<>"],\""<>type<>"\""<>cellLabel<>"]"
+                fragments=StringJoin[StringRiffle[escape/@(parseElement@Flatten[{text}]),{"{",",","}"}]];
+                "Cell[TextData["<>fragments<>"],\""<>type<>"\""<>cellLabel<>"]"
             ]
           ,{cell,$message["cells"]}];
           notebook=StringRiffle[notebook,{"Notebook[{\n",",\n","\n}]\n"}];
