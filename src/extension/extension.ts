@@ -27,10 +27,9 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.manageKernels", () => {
     notebookController.manageKernel();
   }));
-  context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.newNotebook", () => {
-    vscode.workspace.openNotebookDocument("wolfram-language-notebook", {cells: []}).then(e => {
-      vscode.commands.executeCommand('vscode.open', e.uri);
-    });
+  context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.newNotebook", async () => {
+    const newNotebook = await vscode.workspace.openNotebookDocument("wolfram-language-notebook", {cells: []});
+    await vscode.commands.executeCommand('vscode.open', newNotebook.uri);
   }));
   context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.openConfigurations", () => {
     vscode.commands.executeCommand("workbench.action.openSettings", "wolframLanguageNotebook");

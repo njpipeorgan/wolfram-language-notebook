@@ -11,9 +11,6 @@
       "path": "./src/extension"
     },
     {
-      "path": "./src/language"
-    },
-    {
       "path": "./src/test"
     }
   ]

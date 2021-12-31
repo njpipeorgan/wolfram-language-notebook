@@ -49,7 +49,7 @@ export const wlCompletionProvider: vscode.CompletionItemProvider<vscode.Completi
     if (token.isCancellationRequested) {
       return defaultItems;
     }
-    const prefixWord = (prefixText.match(/[^$A-Z0-9]?([$A-Z][$A-Za-z0-9]*)$/) || [])[1];
+    const prefixWord = (prefixText.match(/[^$A-Z0-9]?([$A-Z][$A-Za-z0-9]*)$/) || ["", ""])[1];
     const range = new vscode.Range(position.line, position.character - prefixWord.length, position.line, position.character);
 
     let items: vscode.CompletionItem[] = [];

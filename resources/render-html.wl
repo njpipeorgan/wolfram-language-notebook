@@ -170,7 +170,7 @@ renderHTMLimpl[SubscriptBox[x_,y_,___]]:=renderWrapper[<|"head"->SubscriptBox,"m
   TemplateApply["<wsub><w></w>`1`<w>`2`</w></wsub>",{renderHTMLimpl[x],renderHTMLimpl[y]}]]
 
 renderHTMLimpl[SubsuperscriptBox[x_,y_,z_,___]]:=renderWrapper[<|"head"->SubsuperscriptBox,"mutable"->True|>,<||>,
-  TemplateApply["<wsubsup><w></w>`1`<w>`2`<w></w>`3`</w></wsubsup>",{renderHTMLimpl[x],renderHTMLimpl[y],renderHTMLimpl[z]}]]
+  TemplateApply["<wsubsup><w></w>`1`<w>`3`<w></w>`2`</w></wsubsup>",{renderHTMLimpl[x],renderHTMLimpl[y],renderHTMLimpl[z]}]]
 
 renderHTMLimpl[OverscriptBox[x_,y_,___]]:=renderWrapper[OverscriptBox,<||>,
   TemplateApply["<wover`3`><w>`2`</w>`1`</wover>",{renderHTMLimpl[x],renderHTMLimpl[y],htmlClass[{mutableClassName}]}]]
