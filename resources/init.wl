@@ -447,6 +447,8 @@ logWrite[TemplateApply["[address tcp://127.0.0.1:``]\n",$zmqserver["DestinationP
 
 (* make a call of MakeBoxes on an image *)
 MakeBoxes[#]&@Image[{{0}}];
+(* make a call to Legended *)
+Legended[0,0];
 
 
 logWrite["<INITIALIZATION ENDS>"];

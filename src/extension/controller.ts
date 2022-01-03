@@ -534,6 +534,8 @@ export class WLNotebookController {
 
     const kernelInitPath = path.join(this.extensionPath, 'resources', 'init-compressed.txt');
     const kernelRenderInitPath = path.join(this.extensionPath, 'resources', 'render-html.wl');
+    this.outputChannelAppendLine(`kernelInitPath = ${kernelInitPath}`);
+    this.outputChannelAppendLine(`kernelRenderInitPath = ${kernelRenderInitPath}`);
     let kernelInitString = "";
     let kernelRenderInitString = "";
 
