@@ -97,41 +97,44 @@ commandEscape[command_String]:=If[$OperatingSystem==="Windows",
   If[StringContainsQ[command," "]&&!StringMatchQ[command,"\""~~__~~"\""],"\""<>command<>"\"",command],
   StringReplace[command,(#->"\\"<>#&/@Characters@" $'\"\\#=[]!<>|;{}()*?&")]
 ]
-$kernelCommandWSTP=commandEscape[First[$CommandLine]]<>" -noicon -wstp";
-logWrite["Using the following command to launch subkernel: "];
-logWrite[$kernelCommandWSTP];
-$kernel=LinkLaunch[$kernelCommandWSTP];
-$preemptive=LinkCreate[];
+
+$kernel=LinkCreate[CreateUUID[]];
+$preemptive=LinkCreate[CreateUUID[]];
+If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject,
+  logError["Failed to create main and preemptive links; $kernel="<>ToString[$kernel]];
+]
+
+$kernelCommand={First[$CommandLine],"-noicon","-wstp","-linkprotocol","SharedMemory","-linkmode","connect","-linkname",$kernel[[1]]};
+logWrite["Using the following command to launch the subkernel process:"];
+logWrite[StringRiffle[$kernelCommand," "]];
+$process=StartProcess[$kernelCommand];
 $processID=Null;
 
-If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject||(!
-  TimeConstrained[
-    While[!(LinkReadyQ[$kernel]),Pause[0.1];];
-    (* read the first InputNamePacket *)
-    Module[{packet=LinkRead[$kernel]},
-      If[Head[packet]===InputNamePacket,
-        $inputName=packet[[1]];,
-        logError["The first packet is not a InputNamePacket; packet="<>ToString[packet]];Exit90;
-      ];
+TimeConstrained[
+  While[!(LinkReadyQ[$kernel]),Pause[0.1];];
+  (* read the first InputNamePacket *)
+  Module[{packet=LinkRead[$kernel]},
+    If[Head[packet]===InputNamePacket,
+      $inputName=packet[[1]];,
+      logError["The first packet is not a InputNamePacket; packet="<>ToString[packet]];
     ];
-    (* set up preemptive link; get kernel process id *)
-    With[{name=$preemptive[[1]]},
-      LinkWrite[$kernel,Unevaluated[EvaluatePacket[
-        MathLink`AddSharingLink[
-          LinkConnect[name],
-          MathLink`AllowPreemptive->True,
-          MathLink`ImmediateStart->True
-        ];$ProcessID
-      ]]];
-      $processID=LinkRead[$kernel][[1]];
-    ];
-    logWrite["Subkernel launched; $preemptive="<>ToString@$preemptive<>", $processID="<>ToString[$processID]];
-    True,
-    30.0,False
-  ]),
-  logWrite["Failed to launch computation kernel; $kernel="<>ToString[$kernel]];
-  logError["Failed to launch computation kernel."];Exit[];
+  ];
+  (* set up preemptive link; get kernel process id *)
+  With[{name=$preemptive[[1]]},
+    LinkWrite[$kernel,Unevaluated[EvaluatePacket[
+      MathLink`AddSharingLink[
+        LinkConnect[name],
+        MathLink`AllowPreemptive->True,
+        MathLink`ImmediateStart->True
+      ];$ProcessID
+    ]]];
+    $processID=LinkRead[$kernel][[1]];
+  ];
+  logWrite["Subkernel launched; $preemptive="<>ToString@$preemptive<>", $processID="<>ToString[$processID]];,
+  30.0,
+  logError["Failed to launch computation kernel; $kernel="<>ToString[$kernel]];
 ];
+
 Unprotect[EnterExpressionPacket,EvaluatePacket,ReturnExpressionPacket,ReturnPacket,EnterTextPacket];
 SetAttributes[{EnterExpressionPacket,EvaluatePacket,ReturnExpressionPacket,ReturnPacket,EnterTextPacket},{HoldAllComplete}];
 Protect[EnterExpressionPacket,EvaluatePacket,ReturnExpressionPacket,ReturnPacket,EnterTextPacket];
