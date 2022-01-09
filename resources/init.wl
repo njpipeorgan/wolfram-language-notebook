@@ -93,11 +93,6 @@ logWrite["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[200]]];
 logWrite["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[200]]];
 Quiet@LinkClose[$kernel];
 
-commandEscape[command_String]:=If[$OperatingSystem==="Windows",
-  If[StringContainsQ[command," "]&&!StringMatchQ[command,"\""~~__~~"\""],"\""<>command<>"\"",command],
-  StringReplace[command,(#->"\\"<>#&/@Characters@" $'\"\\#=[]!<>|;{}()*?&")]
-]
-
 $kernel=LinkCreate[CreateUUID[]];
 $preemptive=LinkCreate[CreateUUID[]];
 If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject,

@@ -12,12 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import * as Constants from "./constants";
 import * as FontMeasure from "./font-measure";
 
+const GRAPHICS_MINIMUM_SIZE = 10;
 const MINIMUM_FONT_SIZE_PX = 9.0 * 96.0 / 72.0;
 
-let boxMutations = [];
+type Style = {
+  fontSize: number,
+  fontFamily: string,
+  fontMetric: { middle: number, baseline: number },
+  lineHeight: number
+};
+
+let boxMutations : (() => any)[] = [];
 const clearBoxMutations = () => {
   for (const mutation of boxMutations) {
     mutation();
@@ -25,7 +32,7 @@ const clearBoxMutations = () => {
   boxMutations.length = 0;
 };
 
-export const handleBoxes = root => {
+export const handleBoxes = (root: HTMLElement) => {
   const baseStyle = {
     fontFamily: "'Consolas', 'wlsupplement'",
     fontSize: 14.0,
@@ -35,7 +42,7 @@ export const handleBoxes = root => {
   try {
     const element = root.querySelector(".wexpr > :first-child");
     if (element) {
-      handleBox(element, baseStyle);
+      handleBox(element as HTMLElement, baseStyle);
       clearBoxMutations();
     }
   } catch (e) {
@@ -43,8 +50,10 @@ export const handleBoxes = root => {
   }
 };
 
-const handleBox = (elem, style) => {
-  const handlerTable = {
+const handleBox = (elem: HTMLElement, style: Style) => {
+  const handlerTable:
+    { [key: string]: (elem: HTMLElement, style: Style) => number[] } = {
+    /* eslint-disable */
     "W": handleStringBox,
     "WROW": handleRowBox,
     "WSUP": handleSuperscriptBox,
@@ -59,6 +68,7 @@ const handleBox = (elem, style) => {
     "WFRAME": handleFrameBox,
     "WPANE": handlePaneBox,
     "WGRAPH": handleGraphicsBox
+    /* eslint-enable */
   };
   if (handlerTable[elem.tagName] === undefined) {
     return [0, 0];
@@ -74,15 +84,15 @@ const handleBox = (elem, style) => {
   }
 };
 
-const elementSpanMerge = (a, b) => [Math.max(a[0], b[0]), Math.max(a[1], b[1])];
-const elementSpanAdd = (span, offset) => [span[0] + offset, span[1] - offset];
-const elementSpanToString = span => `${span[0].toFixed(2)} ${span[1].toFixed(2)}`;
+const elementSpanMerge = (a: number[], b: number[]) => [Math.max(a[0], b[0]), Math.max(a[1], b[1])];
+const elementSpanAdd = (span: number[], offset: number) => [span[0] + offset, span[1] - offset];
+const elementSpanToString = (span: number[]) => `${span[0].toFixed(2)} ${span[1].toFixed(2)}`;
 
-const parseCssLength = (value, reference = NaN) => {
+const parseCssLength = (value: string, reference = NaN) => {
   if (value === "") {
     return NaN;
   } else if (value[value.length - 1] === "%") {
-    return reference * (0.01 * parseFloat(newFontSize.substring(0, newFontSize.length - 1)));
+    return reference * (0.01 * parseFloat(value.substring(0, value.length - 1)));
   } else if (value.substring(value.length - 2) === "pt") {
     return parseFloat(value.substring(0, value.length - 2)) * (96.0 / 72.0);
   } else {
@@ -90,7 +100,7 @@ const parseCssLength = (value, reference = NaN) => {
   }
 };
 
-const bracketRenderScheme = {
+const bracketRenderScheme: { [key: string]: string[][] } = {
   "(": [["&#xe010;"], ["&#xe012;"], ["&#xe014;", "&#xe015;", "&#xe000;"]],
   ")": [["&#xe011;"], ["&#xe013;"], ["&#xe016;", "&#xe017;", "&#xe001;"]],
   "[": [["&#xe018;"], ["&#xe01a;"], ["&#xe01c;", "&#xe01d;", "&#xe000;"]],
@@ -116,7 +126,7 @@ const bracketRenderScheme = {
   "\uf361": [["&#xe050;"], ["&#xe052;"], ["&#xe054;"], ["&#xe056;"], ["&#xe058;", "&#xe059;", "&#xe05a;", "&#xe002;"]], // Piecewise
 };
 
-const handleBracket = (elem, style, span) => {
+const handleBracket = (elem: HTMLElement, style: Style, span: number[]) => {
   let ch = elem.getAttribute("ch");
   const em = Math.floor(style.fontSize);
   if (ch === null) {
@@ -125,7 +135,7 @@ const handleBracket = (elem, style, span) => {
     elem.setAttribute("ch", ch);
     elem.style.lineHeight = `${em}px`;
   }
-  const previousHeightCat = parseInt(elem.getAttribute("height"));
+  const previousHeightCat = parseInt(elem.getAttribute("height") || "0");
   const middle = (style.fontMetric.baseline - 0.5) * style.fontSize;
   const spanMax = Math.max(span[0] - middle - 0.05 * em, span[1] + middle - 0.05 * em);
   const bracketMaxHeight = "()\u2308\u2309\u230a\u230b\uf603\uf604\uf605\uf606\uf361".includes(ch) ? 100 * em : 2 * em;
@@ -155,13 +165,13 @@ const handleBracket = (elem, style, span) => {
         }
       }
       elem.style.height = `${(containerHeight).toFixed(2)}px`;
-      elem.setAttribute("height", bracketHeightCat);
+      elem.setAttribute("height", String(bracketHeightCat));
     });
   }
   return [0.5 * containerHeight + middle, 0.5 * containerHeight - middle];
 };
 
-const handleStringBox = (elem, style) => {
+const handleStringBox = (elem: HTMLElement | null, style: Style) => {
   const lineHeight = style.lineHeight + (!(elem) ? 0.0 :
     elem.classList.contains("large-symbol") ? 0.5 : 
     elem.classList.contains("small-symbol") ? -0.5 : 0.0
@@ -173,14 +183,10 @@ const handleStringBox = (elem, style) => {
   ];
 };
 
-const handleRowBox = (elem, style, styleHandled = false) => {
+const handleRowBox = (elem: HTMLElement, style: Style, styleHandled = false) : number[] => {
   if (!styleHandled && (elem.style.fontFamily || elem.style.fontSize)) {
-    let newFontFamily = elem.style.fontFamily;
-    let newFontSize = elem.style.fontSize;
-    if (newFontFamily === "") {
-      newFontFamily = style.fontFamily;
-    }
-    newFontSize = parseCssLength(newFontSize);
+    let newFontFamily = elem.style.fontFamily || style.fontFamily;
+    let newFontSize = parseCssLength(elem.style.fontSize);
     if (!(newFontSize >= 0)) {
       newFontSize = style.fontSize;
     }
@@ -191,9 +197,9 @@ const handleRowBox = (elem, style, styleHandled = false) => {
       fontMetric: (newFontFamily === style.fontFamily) ? style.fontMetric : FontMeasure.getFontMetric(newFontFamily)
     }, true);
   } else {
-    let span = handleStringBox(elem.children[0], style);
+    let span = handleStringBox(elem.children[0] as HTMLElement, style);
     let brackets = [];
-    for (const child of elem.children) {
+    for (const child of elem.children as any) {
       if (child.tagName === "W") {
       } else if (child.tagName === "WB") {
         brackets.push(child);
@@ -214,15 +220,15 @@ const handleRowBox = (elem, style, styleHandled = false) => {
   }
 };
 
-const getScriptStyle = style => {
+const getScriptStyle = (style: Style) => {
   return {
     ...style,
     fontSize: Math.max(style.fontSize * 0.71, MINIMUM_FONT_SIZE_PX)
   };
 };
-const getLineWidth = style => Math.max(0.08 * style.fontSize, 1.0);
+const getLineWidth = (style: Style) => Math.max(0.08 * style.fontSize, 1.0);
 
-const getAlignments = (span, style) => {
+const getAlignments = (span: number[], style: Style) => {
   const supFactor = 0.32;
   const subFactor = 0.95;
   const fontSize = style.fontSize;
@@ -242,12 +248,12 @@ const getAlignments = (span, style) => {
   };
 };
 
-const handleSubscriptBoxImpl = (elem, style, isSubscript) => {
-  const base = elem.children[1];
-  const script = elem.children[2];
+const handleSubscriptBoxImpl = (elem: HTMLElement, style: Style, isSubscript: boolean) => {
+  const base = elem.children[1] as HTMLElement;
+  const script = elem.children[2] as HTMLElement;
   const scriptStyle = getScriptStyle(style);
   const baseSpan = handleBox(base, style);
-  const scriptSpan = handleBox(script.firstChild, scriptStyle);
+  const scriptSpan = handleBox(script.firstChild as HTMLElement, scriptStyle);
   const baseAlign = getAlignments(baseSpan, style);
   const scriptAlign = getAlignments(scriptSpan, scriptStyle);
   const valign = isSubscript ?
@@ -260,15 +266,15 @@ const handleSubscriptBoxImpl = (elem, style, isSubscript) => {
   elem.setAttribute("span", elementSpanToString(span));
   return span;
 };
-const handleSuperscriptBox = (elem, style) => handleSubscriptBoxImpl(elem, style, false);
-const handleSubscriptBox = (elem, style) => handleSubscriptBoxImpl(elem, style, true);
+const handleSuperscriptBox = (elem: HTMLElement, style: Style) => handleSubscriptBoxImpl(elem, style, false);
+const handleSubscriptBox = (elem: HTMLElement, style: Style) => handleSubscriptBoxImpl(elem, style, true);
 
-const handleSubsuperscriptBox = (elem, style) => {
-  const base = elem.children[1];
-  const scripts = elem.children[2];
-  const sup = scripts.children[0];
-  const space = scripts.children[1];
-  const sub = scripts.children[2];
+const handleSubsuperscriptBox = (elem: HTMLElement, style: Style) => {
+  const base = elem.children[1] as HTMLElement;
+  const scripts = elem.children[2] as HTMLElement;
+  const sup = scripts.children[0] as HTMLElement;
+  const space = scripts.children[1] as HTMLElement;
+  const sub = scripts.children[2] as HTMLElement;
   const scriptStyle = getScriptStyle(style);
   const baseSpan = handleBox(base, style);
   const subSpan = handleBox(sub, scriptStyle);
@@ -287,29 +293,29 @@ const handleSubsuperscriptBox = (elem, style) => {
   return [Math.max(baseSpan[0], supSpan[0] + supValign), Math.max(baseSpan[1], subSpan[1] - subValign)];
 };
 
-const handleUnderscriptBoxImpl = (elem, style, isUnderscript) => {
-  const base = elem.children[isUnderscript ? 0 : 1];
-  const script = elem.children[isUnderscript ? 1 : 0];
+const handleUnderscriptBoxImpl = (elem: HTMLElement, style: Style, isUnderscript: boolean) => {
+  const base = elem.children[isUnderscript ? 0 : 1] as HTMLElement;
+  const script = elem.children[isUnderscript ? 1 : 0] as HTMLElement;
   const scriptStyle = getScriptStyle(style);
   const baseSpan = handleBox(base, style);
-  const scriptSpan = handleBox(script.firstChild, scriptStyle);
+  const scriptSpan = handleBox(script.firstChild as HTMLElement, scriptStyle);
   const span = isUnderscript ?
     [baseSpan[0], baseSpan[1] + scriptSpan[0] + scriptSpan[1]] :
     [baseSpan[0] + scriptSpan[0] + scriptSpan[1], baseSpan[1]];
   elem.setAttribute("span", elementSpanToString(span));
   return span;
 };
-const handleOverscriptBox = (elem, style) => handleUnderscriptBoxImpl(elem, style, false);
-const handleUnderscriptBox = (elem, style) => handleUnderscriptBoxImpl(elem, style, true);
+const handleOverscriptBox = (elem: HTMLElement, style: Style) => handleUnderscriptBoxImpl(elem, style, false);
+const handleUnderscriptBox = (elem: HTMLElement, style: Style) => handleUnderscriptBoxImpl(elem, style, true);
 
-const handleUnderoverscriptBox = (elem, style) => {
-  const base = elem.children[1].firstChild;
-  const over = elem.children[0];
-  const under = elem.children[1].children[1];
+const handleUnderoverscriptBox = (elem: HTMLElement, style: Style) => {
+  const base = elem.children[1].firstChild as HTMLElement;
+  const over = elem.children[0] as HTMLElement;
+  const under = elem.children[1].children[1] as HTMLElement;
   const scriptStyle = getScriptStyle(style);
   const baseSpan = handleBox(base, style);
-  const overSpan = handleBox(over.firstChild, scriptStyle);
-  const underSpan = handleBox(under.firstChild, scriptStyle);
+  const overSpan = handleBox(over.firstChild as HTMLElement, scriptStyle);
+  const underSpan = handleBox(under.firstChild as HTMLElement, scriptStyle);
   const span = [baseSpan[0] + overSpan[0] + overSpan[1], baseSpan[1] + underSpan[0] + underSpan[1]];
   elem.setAttribute("span", elementSpanToString(span));
   return span;
@@ -324,13 +330,13 @@ const sqrtSignRenderScheme = [
   ["&#xe084;", "&#xe089;"]
 ];
 
-const handleSqrtBox = (elem, style) => {
-  const base = elem.children[2];
-  const script = elem.children[0].children[1];
+const handleSqrtBox = (elem: HTMLElement, style: Style) => {
+  const base = elem.children[2] as HTMLElement;
+  const script = elem.children[0].children[1] as HTMLElement;
   const scriptStyle = getScriptStyle(style);
   const lineWidth = getLineWidth(style);
-  const baseSpan = elementSpanMerge(handleStringBox(null, style), handleBox(base.firstChild, style));
-  const scriptSpan = script ? handleBox(script.firstChild, scriptStyle) : [0.0, 0.0];
+  const baseSpan = elementSpanMerge(handleStringBox(null, style), handleBox(base.firstChild as HTMLElement, style));
+  const scriptSpan = script ? handleBox(script.firstChild as HTMLElement, scriptStyle) : [0.0, 0.0];
   const signRightHeight = (baseSpan[0] + baseSpan[1] + lineWidth) / style.fontSize;
   const signLeftHeight = Math.min(0.25 * (signRightHeight + 1.0), 1.0);
   const heightCat = Math.min(Math.max(Math.round(2.0 * (signRightHeight - 1.0)), 0), 4);
@@ -341,25 +347,25 @@ const handleSqrtBox = (elem, style) => {
   boxMutations.push(() => {
     elem.children[1].innerHTML = `<w style="transform:scaleY(${scaleFactorRight})">${signRightChar}</w>`;
     elem.children[0].children[0].innerHTML = `<w style="transform:scaleY(${scaleFactorLeft})">${signLeftChar}</w>`;
-    elem.children[0].children[0].style.height = `${signLeftHeight.toFixed(3)}em`;
+    (elem.children[0].children[0] as HTMLElement).style.height = `${signLeftHeight.toFixed(3)}em`;
     elem.style.marginTop = `${Math.max(scriptExtraHeight, 0.1).toFixed(3)}em`;
   });
   return [baseSpan[0] + lineWidth, baseSpan[1]];
 };
-const handleFractionBox = (elem, style) => {
+const handleFractionBox = (elem: HTMLElement, style: Style) => {
   const up = elem.children[0];
   const down = elem.children[1].children[1];
   const scriptStyle = elem.classList.contains("script") ? getScriptStyle(style) : style;
-  const upSpan = handleBox(up.firstChild, scriptStyle);
-  const downSpan = handleBox(down.firstChild, scriptStyle);
+  const upSpan = handleBox(up.firstChild as HTMLElement, scriptStyle);
+  const downSpan = handleBox(down.firstChild as HTMLElement, scriptStyle);
   const lineWidth = getLineWidth(style);
   const offset = getAlignments([0., 0.], style).middle;
   const span = elementSpanAdd([upSpan[0] + upSpan[1] + 0.5 * lineWidth, downSpan[0] + downSpan[1] + 0.5 * lineWidth], offset);
   elem.setAttribute("span", elementSpanToString(span));
   return span;
 };
-const handleGridBox = (elem, style) => {
-  const childrenSpans = Array.from(elem.children).map(child => handleBox(child.firstChild, style));
+const handleGridBox = (elem: HTMLElement, style: Style) => {
+  const childrenSpans = Array.from(elem.children).map(child => handleBox(child.firstChild as HTMLElement, style));
   clearBoxMutations();
   const height = elem.offsetHeight;
   const middle = (style.fontMetric.baseline - style.fontMetric.middle) * style.fontSize;
@@ -368,21 +374,21 @@ const handleGridBox = (elem, style) => {
   elem.setAttribute("span", elementSpanToString(span));
   return span;
 };
-const handleFrameBox = (elem, style) => {
+const handleFrameBox = (elem: HTMLElement, style: Style) => {
   const defaultPadding = getLineWidth(style);
-  const orDefault = value => (value >= 0 ? value : defaultPadding);
+  const orDefault = (value: number) => (value >= 0 ? value : defaultPadding);
   const paddings = [orDefault(parseCssLength(elem.style.paddingTop)), orDefault(parseCssLength(elem.style.paddingBottom))];
   const margins = [parseCssLength(elem.style.marginTop) || 0, parseCssLength(elem.style.marginBottom) || 0];
   const lineWidth = Math.max(1.0, 0.05 * style.fontSize);
-  const contentSpan = handleBox(elem.firstChild, style);
+  const contentSpan = handleBox(elem.firstChild as HTMLElement, style);
   const span = [contentSpan[0] + paddings[0] + margins[0] + lineWidth, contentSpan[1] + paddings[1] + margins[1] + lineWidth];
   elem.setAttribute("span", elementSpanToString(span));
   return span;
 };
-const handlePaneBox = (elem, style) => {
+const handlePaneBox = (elem: HTMLElement, style: Style) => {
   return handleStringBox(elem, style);
 };
-const handleGraphicsBox = (elem, style) => {
+const handleGraphicsBox = (elem: HTMLElement, style: Style) => {
   const height = elem.offsetHeight;
   const middle = (style.fontMetric.baseline - style.fontMetric.middle) * style.fontSize;
   const margin = 0.1 * style.fontSize + 1.0;
@@ -392,43 +398,43 @@ const handleGraphicsBox = (elem, style) => {
 };
 
 
-const preventDefault = e => {
+const preventDefault = (e: any) => {
   e.preventDefault();
 };
-const addPreventDragStart = elem => {
+const addPreventDragStart = (elem: HTMLElement) => {
   elem.addEventListener("dragstart", preventDefault);
 };
-const removePreventDragStart = elem => {
+const removePreventDragStart = (elem: HTMLElement) => {
   elem.removeEventListener("dragstart", preventDefault);
 };
 
-export const addResizeWidget = root => {
+export const addResizeWidget = (root: HTMLElement) => {
   const graphs = root.querySelectorAll("wgraph.resizable");
   for (let i = graphs.length - 1; i >= 0; --i) {
-    const graph = graphs[i];
+    const graph = graphs[i] as HTMLElement;
     addPreventDragStart(graph);
     if (graph.childElementCount > 0) {
-      addPreventDragStart(graph.children[0]);
+      addPreventDragStart(graph.children[0] as HTMLElement);
     }
     
     graph.appendChild(document.createElement("div"));
-    const widget = graph.lastChild;
+    const widget = graph.lastChild as HTMLElement;
     widget.className = "resize-widget";
     widget.style.zIndex = "1000";
-    widget.onpointerdown = e => {
+    widget.onpointerdown = (e: PointerEvent) => {
       const initialX = e.clientX;
-      const initialWidth = e.target.parentElement.offsetWidth;
+      const initialWidth = (e.target as HTMLElement).parentElement?.offsetWidth || 0;
       widget.onpointermove = e => {
-        const parent = widget.parentElement;
-        const aspectRatio = parent ? parseFloat(parent.getAttribute("aspect-ratio")) : NaN;
+        const parent = widget.parentElement as HTMLElement;
+        const aspectRatio = parent ? parseFloat(parent.getAttribute("aspect-ratio") || "") : NaN;
         if (!(aspectRatio > 0)) {
           return;
         }
         let newWidth = e.clientX - initialX + initialWidth;
-        if (aspectRatio <= 1.0 && newWidth < Constants.GRAPHICS_MINIMUM_SIZE) {
-          newWidth = Constants.GRAPHICS_MINIMUM_SIZE;
-        } else if (aspectRatio > 1.0 && newWidth * aspectRatio < Constants.GRAPHICS_MINIMUM_SIZE) {
-          newWidth = Constants.GRAPHICS_MINIMUM_SIZE / aspectRatio;
+        if (aspectRatio <= 1.0 && newWidth < GRAPHICS_MINIMUM_SIZE) {
+          newWidth = GRAPHICS_MINIMUM_SIZE;
+        } else if (aspectRatio > 1.0 && newWidth * aspectRatio < GRAPHICS_MINIMUM_SIZE) {
+          newWidth = GRAPHICS_MINIMUM_SIZE / aspectRatio;
         }
         parent.style.width = `${newWidth}px`;
         parent.style.height = `${newWidth * aspectRatio}px`;
@@ -442,15 +448,17 @@ export const addResizeWidget = root => {
   }
 };
 
-export const removeResizeWidget = root => {
+export const removeResizeWidget = (root: HTMLElement) => {
   const widgets = root.querySelectorAll(".resize-widget");
   for (let i = widgets.length - 1; i >= 0; --i) {
     const widget = widgets[i];
-    const parent = widget.parent;
-    parent.removeChild(widget);
-    if (parent.childElementCount > 0) {
-      removePreventDragStart(graph.children[0]);
+    const parent = widget.parentElement;
+    if (parent) {
+      parent.removeChild(widget);
+      if (parent.childElementCount > 0) {
+        removePreventDragStart(parent.children[0] as HTMLElement);
+      }
+      removePreventDragStart(parent);
     }
-    removePreventDragStart(parent);
   }
 };

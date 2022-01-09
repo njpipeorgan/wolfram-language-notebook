@@ -12,11 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import errorOverlay from 'vscode-notebook-error-overlay';
-import type { ActivationFunction } from 'vscode-notebook-renderer';
-import '../media/reset.css';
-import '../media/render.css';
-const renderUtils = require("./render-utils");
+import errorOverlay from "vscode-notebook-error-overlay";
+import type { ActivationFunction } from "vscode-notebook-renderer";
+import "../media/reset.css";
+import "../media/render.css";
+import * as renderUtils from "./render-utils";
 
 // Fix the public path so that any async import()'s work as expected.
 declare const __webpack_relative_entrypoint_to_root__: string;
