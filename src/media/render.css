@@ -1,12 +1,12 @@
 :root {
   --fraction-line-width: max(0.08em, 1px);
-  --script-font-size: max(71%, 9pt); /* getScriptStyle */
+  --script-font-size: max(71%, 8pt); /* getScriptStyle */
   --line-height: 1.1;
 }
 
 :host {
   --fraction-line-width: max(0.08em, 1px);
-  --script-font-size: max(71%, 9pt); /* getScriptStyle */
+  --script-font-size: max(71%, 8pt); /* getScriptStyle */
   --line-height: 1.1;
 }
 

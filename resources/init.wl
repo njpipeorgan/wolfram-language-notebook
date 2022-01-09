@@ -148,7 +148,7 @@ readMessage[timeout_:1.0]:=Module[{temp},Pause[timeout];If[Head[$messagedebug]==
 
 
 handleOutput[]:=Module[{},
-  Module[{output=queuePop[$outputQueue],boxes,exceedsExprSize,text,html},
+  Module[{output=queuePop[$outputQueue],boxes,exceedsExprSize,shouldStoreText=True,text,html},
     $previousOutputMessage=$currentOutputMessage;
     $currentOutputMessage="";
     Switch[output["type"],
@@ -168,9 +168,9 @@ handleOutput[]:=Module[{},
             FormBox[#[[1,1]],TraditionalForm],
             MakeBoxes@@#
           ]&[output["packet"]];
-          text=If[exceedsExprSize||(!TrueQ@$getKernelConfig["storeOutputExpressions"]),"",
-            Replace[output["packet"],ReturnExpressionPacket[expr_]:>ToString[Unevaluated[expr],InputForm]]
-          ];,
+          shouldStoreText=StringMatchQ[output["name"],RegularExpression["^Out\\[.+\\]//TeXForm=.*"]]
+            ||(!exceedsExprSize&&TrueQ@$getKernelConfig["storeOutputExpressions"]);
+          text=If[shouldStoreText,Replace[output["packet"],ReturnExpressionPacket[expr_]:>ToString[Unevaluated[expr],InputForm]],""];,
           $getKernelConfig["boxesTimeLimit"]/1000.0,
           boxes=renderingFailed["The conversion to the box representation took too much time."];
           text="$Failed";
@@ -191,7 +191,7 @@ handleOutput[]:=Module[{},
           "type"->"show-output",
           "uuid"->output["uuid"],
           "name"->output["name"],
-          "text"->If[TrueQ@$getKernelConfig["storeOutputExpressions"],text,Null],
+          "text"->If[shouldStoreText,text,Null],
           "html"->html
         |>];,
       MessagePacket,

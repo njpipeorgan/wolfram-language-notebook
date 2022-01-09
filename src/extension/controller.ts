@@ -21,6 +21,14 @@ import * as child_process from "child_process";
 import { readFileSync, writeFileSync, writeFile } from "fs";
 import { deserializeMarkup } from "./serializer";
 
+// Load MathJax
+let MathJax: any = undefined;
+require('mathjax')
+.init({ loader: { load: ['adaptors/liteDOM', 'input/tex', 'output/svg'] } })
+.then((mathjax: any) => { MathJax = mathjax; })
+.catch((err: any) => console.log(err.message));
+
+
 interface ExecutionItem {
   id: string,
   execution: vscode.NotebookCellExecution,
@@ -369,16 +377,23 @@ export class WLNotebookController {
         case "show-message":
         case "show-text":
           if (execution) {
-            const outputItems = [
-              vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html")
-            ];
+            const cellLabel = String(message.name);
+            const renderMathJax = typeof message.text === "string" &&
+              Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) && 
+              this.getConfig("rendering.renderTexForm") === true;
+            const outputItems: vscode.NotebookCellOutputItem[] = [];
+            if (renderMathJax) {
+              const svg = MathJax.tex2svg(message.text, {display: true});
+              outputItems.push(vscode.NotebookCellOutputItem.text(MathJax.startup.adaptor.outerHTML(svg), "text/html"));
+            }
+            if (typeof message.html === "string" && !renderMathJax) {
+              outputItems.push(vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html"));
+            }
             if (typeof message.text === "string" && this.getConfig("frontEnd.storeOutputExpressions")) {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
             }
             const output = new vscode.NotebookCellOutput(outputItems);
-            output.metadata = {
-              cellLabel: message.name
-            };
+            output.metadata = { cellLabel };
             if (execution?.hasOutput) {
               execution.execution.appendOutput(output);
             } else {

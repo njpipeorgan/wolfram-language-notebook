@@ -150,6 +150,11 @@
           "default": false,
           "description": "Render all output expressions as images."
         },
+        "wolframLanguageNotebook.rendering.renderTexForm": {
+          "type": "boolean",
+          "default": true,
+          "description": "Render output expressions in TeXForm as LaTeX mathematical expressions."
+        },
         "wolframLanguageNotebook.rendering.outputSizeLimit": {
           "type": "integer",
           "default": 5000,
@@ -222,6 +227,7 @@
     "htmlparser2": "^7.2.0",
     "markdown-it": "^12.2.0",
     "marked": "^4.0.3",
+    "mathjax": "^3.2.0",
     "path": "^0.12.7",
     "string-argv": "^0.3.1",
     "util": "^0.12.4",

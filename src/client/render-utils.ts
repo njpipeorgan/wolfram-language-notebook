@@ -15,7 +15,7 @@
 import * as FontMeasure from "./font-measure";
 
 const GRAPHICS_MINIMUM_SIZE = 10;
-const MINIMUM_FONT_SIZE_PX = 9.0 * 96.0 / 72.0;
+const MINIMUM_FONT_SIZE_PX = 8.0 * 96.0 / 72.0;
 
 type Style = {
   fontSize: number,
@@ -229,8 +229,8 @@ const getScriptStyle = (style: Style) => {
 const getLineWidth = (style: Style) => Math.max(0.08 * style.fontSize, 1.0);
 
 const getAlignments = (span: number[], style: Style) => {
-  const supFactor = 0.32;
-  const subFactor = 0.95;
+  const supFactor = 0.37;
+  const subFactor = 1.05;
   const fontSize = style.fontSize;
   const topFactor = -0.5 * (style.lineHeight - 1.0);
   const bottomFactor = 1.0 - topFactor;

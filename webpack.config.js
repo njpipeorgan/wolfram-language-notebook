@@ -30,7 +30,8 @@ const makeConfig = (argv, { entry, out, target, library = 'commonjs' }) => ({
     "fs": "commonjs fs",
     "uuid": "commonjs uuid",
     "markdown-it": "commonjs markdown-it",
-    "path": "commonjs path"
+    "path": "commonjs path",
+    "mathjax": "commonjs mathjax"
   },
   module: {
     rules: [
