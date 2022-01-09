@@ -48,3 +48,15 @@ To edit or remove kernel configurations, find `kernel.configurations` in the ext
 ## Release Notes
 
 Check [Release Notes](https://github.com/njpipeorgan/wolfram-language-notebook/wiki/Release-Notes).
+
+## FAQ
+
+**The notebook failed to connect to a kernel.**
+
+  - Check that `wolframscript` is installed, and it can be used in the terminal.
+  - Wolfram Mathematica/Engine limits the number of kernels running simultaneously. Try [closing all Wolfram processes](https://support.wolfram.com/36360) before connecting to a kernel fron the notebook.
+  - [Open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) if the problem persists.
+
+**The output of an evaluation was not what I expected.**
+
+  - Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only support a limited number of styling options for now. 
