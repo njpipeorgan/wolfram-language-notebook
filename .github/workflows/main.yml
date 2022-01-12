@@ -15,14 +15,11 @@ jobs:
       WOLFRAM_SYSTEM_ID: Linux-x86-64
     steps:
       - uses: actions/checkout@v2
-      - name: Install build tools
-        run: |
-          apt-get -y update
-          apt-get -y install build-essential
       - name: Run wolframscript
-        env:
-          WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
-        run: wolframscript -code 123+456
+        run: |
+          wolframscript -authenticate ${{ secrets.WOLFRAM_ID }} ${{ secrets.WOLFRAM_PASS }}
+          wolframscript -activate
+          wolframscript -code 123+456
 
   build:
     strategy:
