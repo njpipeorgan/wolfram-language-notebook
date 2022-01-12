@@ -10,6 +10,7 @@ env:
 
 jobs:
   engine-ubuntu:
+    if: false
     runs-on: ubuntu-latest
     container:
       image: wolframresearch/wolframengine:latest
@@ -30,6 +31,14 @@ jobs:
       WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY: WolframEngine
     steps:
       - uses: actions/checkout@v2
+      - name: Cache/restore Wolfram Engine install
+        id: cache-restore
+        uses: actions/cache@v2
+        env:
+          WOLFRAMENGINE_INSTALLATION_DIRECTORY: '${{ runner.temp }}\${{ env.WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY }}'
+        with:
+          path: ${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}
+          key: wolframengine-${{ env.WOLFRAM_SYSTEM_ID }}-${{ env.WOLFRAMENGINE_CACHE_KEY }}
       - name: Download and install Wolfram Engine
         env:
           WOLFRAMENGINE_INSTALLATION_DIRECTORY: '${{ runner.temp }}\${{ env.WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY }}'
@@ -61,7 +70,7 @@ jobs:
           WOLFRAMINIT: "-pwfile !cloudlm.wolfram.com -entitlement ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}"
         run: |
           $env:Path += ';${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}\'
-          wolframscript -code 123+456
+          wolfram -script aaa.wls
 
   build:
     strategy:
