@@ -5,9 +5,11 @@ name: Node.js CI
 
 on: [push, pull_request]
 
+env:
+  WOLFRAMENGINE_INFO_SCRIPT: ./.github/resources/info.wls
+
 jobs:
   linux:
-    if: false
     runs-on: ubuntu-latest
     container:
       image: wolframresearch/wolframengine:latest
@@ -17,11 +19,10 @@ jobs:
       WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
     steps:
       - uses: actions/checkout@v2
-      - name: Run wolframscript
-        run: wolfram -code 
+      - name: Test Wolfram Engine installation
+        run: wolfram -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   windows:
-    if: false
     runs-on: windows-latest
     env:
       WOLFRAM_SYSTEM_ID: Windows-x86-64
@@ -63,13 +64,13 @@ jobs:
           echo 'Installing Wolfram Engine...'
           Start-Process "msiexec.exe" -ArgumentList $MSIArguments -Wait -NoNewWindow
           echo 'Installed Wolfram Engine.'
-      - name: Run wolframscript
+      - name: Test Wolfram Engine installation
         env:
           WOLFRAMENGINE_INSTALLATION_DIRECTORY: '${{ runner.temp }}\${{ env.WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY }}'
           WOLFRAMINIT: "-pwfile !cloudlm.wolfram.com -entitlement ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}"
         run: |
           $env:Path += ';${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}\'
-          wolfram -script aaa.wls
+          wolfram -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   build:
     if: false
