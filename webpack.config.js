@@ -23,6 +23,9 @@ const makeConfig = (argv, { entry, out, target, library = 'commonjs' }) => ({
   externals: {
     "vscode": "commonjs vscode",
     "vscode-test": "commonjs vscode-test",
+    "assert": "commonjs assert",
+    "mocha": "commonjs mocha",
+    "glob": "commonjs glob",
     "util": "commonjs util",
     "zeromq": "commonjs zeromq",
     "path": "commonjs path",
@@ -79,8 +82,8 @@ const makeConfig = (argv, { entry, out, target, library = 'commonjs' }) => ({
 module.exports = (env, argv) => [
   makeConfig(argv, { entry: './src/client/index.ts', out: './out/client/index.js', target: 'web', library: 'module' }),
   makeConfig(argv, { entry: './src/extension/extension.ts', out: './out/extension/extension.js', target: 'node' }),
-  // makeConfig(argv, { entry: './src/test/runTest.ts', out: './out/test/runTest.js', target: 'node' }),
-  // makeConfig(argv, { entry: './src/test/suite/index.ts', out: './out/test/suite/index.js', target: 'node' }),
-  // makeConfig(argv, { entry: './src/test/suite/extension.test.ts', out: './out/test/suite/extension.test.js', target: 'node' }),
+  makeConfig(argv, { entry: './src/test/runTest.ts', out: './out/test/runTest.js', target: 'node' }),
+  makeConfig(argv, { entry: './src/test/suite/index.ts', out: './out/test/suite/index.js', target: 'node' }),
+  makeConfig(argv, { entry: './src/test/suite/extension.test.ts', out: './out/test/suite/extension.test.js', target: 'node' }),
   // makeConfig(argv, { entry: './src/extension/extension.ts', out: './out/extension/extension.web.js', target: 'webworker' }),
 ];
