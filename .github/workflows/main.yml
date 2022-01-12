@@ -6,14 +6,33 @@ name: Node.js CI
 on: [push, pull_request]
 
 jobs:
+  engine-ubuntu:
+    runs-on: ubuntu-latest
+    container:
+      image: wolframresearch/wolframengine:latest
+      options: --user root
+    env:
+      WOLFRAM_SYSTEM_ID: Linux-x86-64
+    steps:
+      - uses: actions/checkout@v2
+      - name: Install build tools
+        run: |
+          apt-get -y update
+          apt-get -y install build-essential
+      - name: Run wolframscript
+        env:
+          WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
+        run: wolframscript -code 123+456
+
   build:
     strategy:
       matrix:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
+    needs: [engine-ubuntu]
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js
       uses: actions/setup-node@v2
       with:
         node-version: ^16
@@ -26,4 +45,3 @@ jobs:
       uses: GabrielBB/xvfb-action@v1.0
       with:
         run: npm test
-
