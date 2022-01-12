@@ -16,22 +16,24 @@ jobs:
       options: --user root
     env:
       WOLFRAM_SYSTEM_ID: Linux-x86-64
+      WOLFRAM_EXECUTABLE: wolframscript
       WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
     steps:
       - uses: actions/checkout@v2
       - name: Test Wolfram Engine installation
-        run: wolfram -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
+        run: ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   windows:
     runs-on: windows-latest
     env:
       WOLFRAM_SYSTEM_ID: Windows-x86-64
+      WOLFRAM_EXECUTABLE: wolfram
       WOLFRAMENGINE_INSTALL_MSI_DOWNLOAD_URL: https://files.wolframcdn.com/packages/winget/12.2.0.0/WolframEngine_12.2.0_WIN.msi
       WOLFRAMENGINE_CACHE_KEY: WolframEngine-A
       WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY: WolframEngine
     steps:
       - uses: actions/checkout@v2
-      - name: Cache/restore Wolfram Engine install
+      - name: Cache/restore Wolfram Engine installation
         id: cache-restore
         uses: actions/cache@v2
         env:
@@ -70,7 +72,7 @@ jobs:
           WOLFRAMINIT: "-pwfile !cloudlm.wolfram.com -entitlement ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}"
         run: |
           $env:Path += ';${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}\'
-          wolfram -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
+          ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   build:
     if: false
