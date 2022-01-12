@@ -5,11 +5,8 @@ name: Node.js CI
 
 on: [push, pull_request]
 
-env:
-  WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
-
 jobs:
-  engine-ubuntu:
+  linux:
     if: false
     runs-on: ubuntu-latest
     container:
@@ -17,12 +14,14 @@ jobs:
       options: --user root
     env:
       WOLFRAM_SYSTEM_ID: Linux-x86-64
+      WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
     steps:
       - uses: actions/checkout@v2
       - name: Run wolframscript
-        run: wolframscript -code 123+456
+        run: wolfram -code 
 
-  engine-windows:
+  windows:
+    if: false
     runs-on: windows-latest
     env:
       WOLFRAM_SYSTEM_ID: Windows-x86-64
@@ -73,11 +72,11 @@ jobs:
           wolfram -script aaa.wls
 
   build:
+    if: false
     strategy:
       matrix:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    needs: [engine-ubuntu, engine-windows]
     steps:
     - uses: actions/checkout@v2
     - name: Setup Node.js
