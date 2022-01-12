@@ -5,6 +5,9 @@ name: Node.js CI
 
 on: [push, pull_request]
 
+env:
+  WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
+
 jobs:
   engine-ubuntu:
     runs-on: ubuntu-latest
@@ -16,9 +19,48 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run wolframscript
+        run: wolframscript -code 123+456
+
+  engine-windows:
+    runs-on: windows-latest
+    env:
+      WOLFRAM_SYSTEM_ID: Windows-x86-64
+      WOLFRAMENGINE_INSTALL_MSI_DOWNLOAD_URL: https://files.wolframcdn.com/packages/winget/12.2.0.0/WolframEngine_12.2.0_WIN.msi
+      WOLFRAMENGINE_CACHE_KEY: WolframEngine-A
+      WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY: WolframEngine
+    steps:
+      - uses: actions/checkout@v2
+      - name: Download and install Wolfram Engine
+        env:
+          WOLFRAMENGINE_INSTALLATION_DIRECTORY: '${{ runner.temp }}\${{ env.WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY }}'
+          WOLFRAMENGINE_INSTALL_MSI_PATH: '${{ runner.temp }}\WolframEngine-Install.msi'
+          WOLFRAMENGINE_INSTALL_LOG_PATH: '${{ runner.temp }}\WolframEngine-Install.log'
         run: |
-          wolframscript -authenticate ${{ secrets.WOLFRAM_ID }} ${{ secrets.WOLFRAM_PASS }}
-          wolframscript -activate
+          echo 'Downloading Wolfram Engine installer...'
+          $msiFile = '${{ env.WOLFRAMENGINE_INSTALL_MSI_PATH }}'
+          $logFile = '${{ env.WOLFRAMENGINE_INSTALL_LOG_PATH }}'
+          Import-Module BitsTransfer
+          Start-BitsTransfer '${{ env.WOLFRAMENGINE_INSTALL_MSI_DOWNLOAD_URL }}' $msiFile
+          echo 'Downloaded Wolfram Engine installer.'
+          $DataStamp = get-date -Format yyyyMMddTHHmmss
+          $MSIArguments = @(
+              "/i"
+              ('"{0}"' -f $msiFile)
+              'INSTALLLOCATION="${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}"'
+              "/qn"
+              "/norestart"
+              "/L*v"
+              $logFile
+          )
+          echo 'Installing Wolfram Engine...'
+          Start-Process "msiexec.exe" -ArgumentList $MSIArguments -Wait -NoNewWindow
+          echo 'Installed Wolfram Engine.'
+      - name: Run wolframscript
+        env:
+          WOLFRAMENGINE_INSTALLATION_DIRECTORY: '${{ runner.temp }}\${{ env.WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY }}'
+          WOLFRAMINIT: "-pwfile !cloudlm.wolfram.com -entitlement ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}"
+        run: |
+          $env:Path += ';${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}\'
           wolframscript -code 123+456
 
   build:
@@ -26,7 +68,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
-    needs: [engine-ubuntu]
+    needs: [engine-ubuntu, engine-windows]
     steps:
     - uses: actions/checkout@v2
     - name: Setup Node.js
@@ -38,7 +80,10 @@ jobs:
       run: |
         npm run syntaxes
         npm run compile
-    - name: Run tests
+    - name: Run Wolfram Engine tests
+      run: |
+        wolframscript -code 2+2
+    - name: Run extension tests
       uses: GabrielBB/xvfb-action@v1.0
       with:
         run: npm test
