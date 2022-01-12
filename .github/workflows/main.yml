@@ -42,6 +42,7 @@ jobs:
           path: ${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}
           key: wolframengine-${{ env.WOLFRAM_SYSTEM_ID }}-${{ env.WOLFRAMENGINE_CACHE_KEY }}
       - name: Download and install Wolfram Engine
+        if: steps.cache-restore.outputs.cache-hit != 'true'
         env:
           WOLFRAMENGINE_INSTALLATION_DIRECTORY: '${{ runner.temp }}\${{ env.WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY }}'
           WOLFRAMENGINE_INSTALL_MSI_PATH: '${{ runner.temp }}\WolframEngine-Install.msi'
