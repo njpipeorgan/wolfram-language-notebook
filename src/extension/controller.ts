@@ -316,7 +316,7 @@ export class WLNotebookController {
     }
   }
 
-  private writeFileChecked(path: string, text: string) {
+  private writeFileChecked(path: string, text: string | Uint8Array) {
     writeFile(path, text, err => {
       if (err) {
         vscode.window.showErrorMessage(`Unable to write file ${path} \n${err.message}`,
@@ -383,8 +383,12 @@ export class WLNotebookController {
               this.getConfig("rendering.renderTexForm") === true;
             const outputItems: vscode.NotebookCellOutputItem[] = [];
             if (renderMathJax) {
-              const svg = MathJax.tex2svg(message.text, {display: true});
-              outputItems.push(vscode.NotebookCellOutputItem.text(MathJax.startup.adaptor.outerHTML(svg), "text/html"));
+              try {
+                const svg = MathJax.tex2svg(JSON.parse(message.text as string), {display: true});
+                outputItems.push(vscode.NotebookCellOutputItem.text(MathJax.startup.adaptor.outerHTML(svg), "text/html"));
+              } catch (err) {
+                outputItems.push(vscode.NotebookCellOutputItem.text("Error occured in parsing TeX string", "text/html"));
+              }
             }
             if (typeof message.html === "string" && !renderMathJax) {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html"));
@@ -393,7 +397,7 @@ export class WLNotebookController {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
             }
             const output = new vscode.NotebookCellOutput(outputItems);
-            output.metadata = { cellLabel };
+            output.metadata = { cellLabel, isBoxData: message.isBoxData || false };
             if (execution?.hasOutput) {
               execution.execution.appendOutput(output);
             } else {
@@ -450,15 +454,23 @@ export class WLNotebookController {
           break;
         case "reply-export-notebook":
           this.statusBarExportItem.hide();
+          if ((message.text || "") === "") {
+            // when there is nothing to export, maybe due to pdf export failure
+            vscode.window.showErrorMessage("Failed to export the notebook.");
+            break;
+          }
+          const defaultFormat = message.format === "pdf" ? "pdf" : "nb";
+          const defaultDescription = message.format === "pdf" ? "PDF" : "Wolfram Notebook";
+          const exportData = message.format === "pdf" ? Buffer.from(message.text, "base64") : message.text as string;
           const path = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, ".nb")),
+            defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, "." + defaultFormat)),
             filters: {
-              "Wolfram Notebook": ["nb"],
+              [defaultDescription]: [defaultFormat],
               "All Files": ["*"]
             }
           });
           if (path) {
-            this.writeFileChecked(path.fsPath, message.text);
+            this.writeFileChecked(path.fsPath, exportData);
           }
           break;
         case "update-symbol-usages":
@@ -983,6 +995,9 @@ export class WLNotebookController {
       }, {
         label: "Wolfram Notebook",
         detail: "Export all cells"
+      }, {
+        label: "PDF",
+        detail: "Export all cells"
       }
     ], {
       placeHolder: "Export As..."
@@ -990,9 +1005,9 @@ export class WLNotebookController {
     if (!(choice?.label)) {
       return;
     }
-    if (choice.label === "Wolfram Notebook" && !this.kernelConnected()) {
+    if ((choice.label === "Wolfram Notebook" || choice.label === "PDF") && !this.kernelConnected()) {
       const start = await vscode.window.showErrorMessage(
-        "Exporting as Wolfram Notebook requires a connected Wolfram Kernel",
+        "Exporting as Wolfram Notebook/PDF requires a connected Wolfram Kernel",
         "Connect", "Dismiss"
       );
       if (start === "Connect") {
@@ -1005,6 +1020,7 @@ export class WLNotebookController {
       type: string; // Title, Section, Text, Input, ...
       label: string; // In[...]:= , Out[...]=
       text: string | any[];
+      isBoxData?: boolean;
     }[] = [];
     const decoder = new util.TextDecoder();
     notebook.getCells().forEach(cell => {
@@ -1022,7 +1038,8 @@ export class WLNotebookController {
           cellData.push({
             type: "Output",
             label: (output?.metadata?.cellLabel || "").toString(),
-            text: decoder.decode(item?.data || new Uint8Array([]))
+            text: decoder.decode(item?.data || new Uint8Array([])),
+            isBoxData: output?.metadata?.isBoxData || false
           });
         });
       }
@@ -1045,10 +1062,11 @@ export class WLNotebookController {
         }
         this.writeFileChecked(path.fsPath, documentText);
       }
-    } else if (choice.label === "Wolfram Notebook") {
+    } else if (choice.label === "Wolfram Notebook" || choice.label === "PDF") {
       this.statusBarExportItem.show();
       this.postMessageToKernel({
         type: "request-export-notebook",
+        format: choice.label === "Wolfram Notebook" ? "nb" : "pdf",
         path: notebook.uri.fsPath,
         cells: cellData
       });

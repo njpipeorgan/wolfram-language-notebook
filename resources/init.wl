@@ -148,7 +148,7 @@ readMessage[timeout_:1.0]:=Module[{temp},Pause[timeout];If[Head[$messagedebug]==
 
 
 handleOutput[]:=Module[{},
-  Module[{output=queuePop[$outputQueue],boxes,exceedsExprSize,shouldStoreText=True,text,html},
+  Module[{output=queuePop[$outputQueue],boxes,exceedsExprSize,isTraditionalForm=False,isTeXForm=False,shouldStoreText=True,text,html},
     $previousOutputMessage=$currentOutputMessage;
     $currentOutputMessage="";
     Switch[output["type"],
@@ -164,13 +164,15 @@ handleOutput[]:=Module[{},
           If[exceedsExprSize,
             output["packet"]=Replace[output["packet"],ReturnExpressionPacket[expr_]:>ReturnExpressionPacket[Short[expr,5]]]
           ];
-          boxes=If[MatchQ[#,ReturnExpressionPacket[BoxData[_,TraditionalForm]]],
+          boxes=If[(isTraditionalForm=MatchQ[#,ReturnExpressionPacket[BoxData[_,TraditionalForm]]]),
             FormBox[#[[1,1]],TraditionalForm],
             MakeBoxes@@#
           ]&[output["packet"]];
-          shouldStoreText=StringMatchQ[output["name"],RegularExpression["^Out\\[.+\\]//TeXForm=.*"]]
+          shouldStoreText=(isTeXForm=StringMatchQ[output["name"],RegularExpression["^Out\\[.+\\]//TeXForm=.*"]])
             ||(!exceedsExprSize&&TrueQ@$getKernelConfig["storeOutputExpressions"]);
-          text=If[shouldStoreText,Replace[output["packet"],ReturnExpressionPacket[expr_]:>ToString[Unevaluated[expr],InputForm]],""];,
+          text=If[shouldStoreText,Replace[output["packet"],ReturnExpressionPacket[expr_]:>ToString[Unevaluated[expr],InputForm]],""];
+          If[isTeXForm,text=ExportString[text,"RawJSON"];];
+          ,
           $getKernelConfig["boxesTimeLimit"]/1000.0,
           boxes=renderingFailed["The conversion to the box representation took too much time."];
           text="$Failed";
@@ -192,6 +194,7 @@ handleOutput[]:=Module[{},
           "uuid"->output["uuid"],
           "name"->output["name"],
           "text"->If[shouldStoreText,text,Null],
+          "isBoxData"->(TrueQ[isTraditionalForm]&&shouldStoreText),
           "html"->html
         |>];,
       MessagePacket,
@@ -299,7 +302,7 @@ handleMessage[]:=Module[{},
           logWrite["Syntax error in the previous front end evaluation: "<>$message["text"]];
         ],
       "request-export-notebook",
-        Module[{type,text,cellLabel,boxes,notebook,escape,fragments,parseElement},
+        Module[{type,text,cellLabel,isBoxData,boxes,notebook,escape,fragments,parseElement,formatSkeletonOutput},
           escape=ToString[#,InputForm,CharacterEncoding->"ASCII"]&;
           parseElement[list_List]:=parseElement/@list;
           parseElement[text_String]:=text;
@@ -317,25 +320,32 @@ handleMessage[]:=Module[{},
             _,"Invalid object type["<>ToString[obj,InputForm]<>"]"
           ];
           parseElement[x_]:="Invalid element["<>ToString[x,InputForm]<>"]";
+          formatSkeletonOutput[message_]:=
+            Quiet@ToString[Quiet@ToExpression["Tooltip[Skeleton[1],\""<>message<>"\"]",InputForm,ToBoxes],InputForm,CharacterEncoding->"ASCII"];
           notebook=Table[
             type=ToString@Lookup[cell,"type","Text"];
             text=Lookup[cell,"text",""];
             cellLabel=If[Head[#]===String&&StringLength[#]>0,",CellLabel->"<>escape[#],""]&@cell["label"];
+            isBoxData=TrueQ@Lookup[cell,"isBoxData",False];
             Switch[type,
               "Output",
                 If[StringLength[text]>0,
-                  boxes=TimeConstrained[
-                    Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"],
-                    $getKernelConfig["boxesTimeLimit"]/1000.0,
-                    Quiet@ToString[Quiet@ToExpression[
-                      "Tooltip[Skeleton[1],\"The conversion to the box representation took too much time.\"]",InputForm,ToBoxes
-                    ],InputForm,CharacterEncoding->"ASCII"];
-                  ];,
-                  boxes=Quiet@ToString[Quiet@ToExpression[
-                    "Tooltip[Skeleton[1],\"The expression was not stored.\"]",InputForm,MakeBoxes
-                  ],InputForm,CharacterEncoding->"ASCII"];
-                ];
-                "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]",
+                  If[isBoxData,
+                    If[SyntaxQ[text],
+                      "Cell["<>text<>",\"Output\""<>cellLabel<>"]",
+                      boxes=formatSkeletonOutput["The expression was stored as BoxData but with syntax error."];
+                      "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]"
+                    ],
+                    boxes=TimeConstrained[
+                      Quiet@ToString[ToExpression[text,InputForm,MakeBoxes],InputForm,CharacterEncoding->"ASCII"],
+                      $getKernelConfig["boxesTimeLimit"]/1000.0,
+                      formatSkeletonOutput["The conversion to the box representation took too much time."]
+                    ];
+                    "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]"
+                  ],
+                  boxes=formatSkeletonOutput["The expression was not stored."];
+                  "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]"
+                ],
               "Input",
                 If[SyntaxQ["\("<>text<>"\)"],
                   boxes=Quiet@ToString[ToExpression["\("<>text<>"\)",InputForm],InputForm,CharacterEncoding->"ASCII"];
@@ -350,8 +360,13 @@ handleMessage[]:=Module[{},
             ]
           ,{cell,$message["cells"]}];
           notebook=StringRiffle[notebook,{"Notebook[{\n",",\n","\n}]\n"}];
+          If[$message["format"]==="pdf",
+            notebook=Quiet@BaseEncode[ExportByteArray[Quiet@ToExpression[notebook,InputForm],"PDF"],"Base64"];
+            If[Head[notebook]=!=String,notebook=""];
+          ];
           sendMessage[<|
             "type"->"reply-export-notebook",
+            "format"->$message["format"],
             "path"->$message["path"],
             "text"->notebook
           |>];
