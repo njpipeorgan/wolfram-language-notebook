@@ -36,7 +36,6 @@ export function activate(context: vscode.ExtensionContext) {
   }));
   context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.exportAs", (e: any) => {
     const activeUri = e?.notebookEditor?.notebookUri;
-    console.log(activeUri);
     if (activeUri) {
       notebookController.exportNotebook(activeUri);
     }

@@ -302,7 +302,7 @@ handleMessage[]:=Module[{},
           logWrite["Syntax error in the previous front end evaluation: "<>$message["text"]];
         ],
       "request-export-notebook",
-        Module[{type,text,cellLabel,isBoxData,boxes,notebook,escape,fragments,parseElement,formatSkeletonOutput},
+        Module[{type,text,cellLabel,isBoxData,boxes,notebook,escape,fragments,parseElement,formatSkeletonOutput,splitInputs,inputs},
           escape=ToString[#,InputForm,CharacterEncoding->"ASCII"]&;
           parseElement[list_List]:=parseElement/@list;
           parseElement[text_String]:=text;
@@ -317,11 +317,17 @@ handleMessage[]:=Module[{},
             "Subscript",Cell[BoxData[FormBox[SubscriptBox["",parseElement@obj["children"]], TraditionalForm]],FormatType->TraditionalForm],
             "Smaller",StyleBox[parseElement@obj["children"],FontSize->Small],
             "Code",StyleBox[parseElement@obj["children"],FontFamily->"Consolas",FontColor->Darker[Red]],
+            "LaTeX",Cell@BoxData@Quiet@ImportString[ToString[obj["children"]],"MathML"],
             _,"Invalid object type["<>ToString[obj,InputForm]<>"]"
           ];
           parseElement[x_]:="Invalid element["<>ToString[x,InputForm]<>"]";
           formatSkeletonOutput[message_]:=
             Quiet@ToString[Quiet@ToExpression["Tooltip[Skeleton[1],\""<>message<>"\"]",InputForm,ToBoxes],InputForm,CharacterEncoding->"ASCII"];
+          splitInputs[str_]:=StringTake[str,Partition[Join[{1},#,{StringLength[str]}],2]]&@
+            Flatten[{#1-1,#2+1}&@@@Sort@Cases[
+              CodeParser`CodeConcreteParse[str,CodeParser`SourceConvention->"SourceCharacterIndex"][[2]],
+              LeafNode[Token`Newline,_,a_]:>Lookup[a,Source,Nothing]
+            ]];
           notebook=Table[
             type=ToString@Lookup[cell,"type","Text"];
             text=Lookup[cell,"text",""];
@@ -347,8 +353,8 @@ handleMessage[]:=Module[{},
                   "Cell[BoxData["<>boxes<>"],\"Output\""<>cellLabel<>"]"
                 ],
               "Input",
-                If[SyntaxQ["\("<>text<>"\)"],
-                  boxes=Quiet@ToString[ToExpression["\("<>text<>"\)",InputForm],InputForm,CharacterEncoding->"ASCII"];
+                If[$hasCodeParser&&SyntaxQ["\("<>text<>"\)"],
+                  boxes=Quiet@ToString[DeleteCases[Riffle[Quiet@ToExpression["\("<>#<>"\)",InputForm]&/@splitInputs[text],"\n"],""],InputForm,CharacterEncoding->"ASCII"];
                   "Cell[BoxData["<>boxes<>"],\"Input\""<>cellLabel<>"]",
                   "Cell[TextData["<>escape[text]<>"],\"Input\""<>cellLabel<>"]"
                 ],

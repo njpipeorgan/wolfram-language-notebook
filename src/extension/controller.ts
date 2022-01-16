@@ -18,15 +18,9 @@ const util = require("util");
 const path = require("path");
 const zmq = require("zeromq");
 import * as child_process from "child_process";
-import { readFileSync, writeFileSync, writeFile } from "fs";
+import { readFileSync, writeFile } from "fs";
 import { deserializeMarkup } from "./serializer";
-
-// Load MathJax
-let MathJax: any = undefined;
-require('mathjax')
-.init({ loader: { load: ['adaptors/liteDOM', 'input/tex', 'output/svg'] } })
-.then((mathjax: any) => { MathJax = mathjax; })
-.catch((err: any) => console.log(err.message));
+import { tex2svg } from "./load-mathjax";
 
 
 interface ExecutionItem {
@@ -383,12 +377,9 @@ export class WLNotebookController {
               this.getConfig("rendering.renderTexForm") === true;
             const outputItems: vscode.NotebookCellOutputItem[] = [];
             if (renderMathJax) {
-              try {
-                const svg = MathJax.tex2svg(JSON.parse(message.text as string), {display: true});
-                outputItems.push(vscode.NotebookCellOutputItem.text(MathJax.startup.adaptor.outerHTML(svg), "text/html"));
-              } catch (err) {
-                outputItems.push(vscode.NotebookCellOutputItem.text("Error occured in parsing TeX string", "text/html"));
-              }
+              outputItems.push(vscode.NotebookCellOutputItem.text(
+                tex2svg(JSON.parse(message.text as string), {display: true}),
+                "text/html"));
             }
             if (typeof message.html === "string" && !renderMathJax) {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html"));

@@ -14,9 +14,11 @@
 
 import * as vscode from "vscode";
 const util = require("util");
+const markdownLatexPlugin = require("./markdown-latex-plugin");
 const MarkdownIt = require("markdown-it");
 const domutils = require("domutils");
 const htmlparser2 = require("htmlparser2");
+import { tex2mml } from "./load-mathjax";
 
 interface WLNotebookData {
   cells: {
@@ -97,7 +99,7 @@ export function deserializeMarkup(markupText: string) {
   }[] = [];
   const md = new MarkdownIt({
     html: true
-  });
+  }).use(markdownLatexPlugin);
   const html = md.render(markupText);
   const doc = htmlparser2.parseDocument(html);
   
@@ -153,6 +155,9 @@ export function deserializeMarkup(markupText: string) {
             children: element?.attribs?.title || "[Image]",
             link: element?.attribs?.src || ""
           };
+        case "tex":
+          const tex = Buffer.from(handleChildren(pre, true), "base64").toString();
+          return { type: "LaTeX", children: tex2mml(tex) };
       }
       return handleChildren(pre, textOnly);
     } else {
