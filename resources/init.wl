@@ -214,7 +214,7 @@ handleOutput[]:=Module[{},
           sendMessage[<|
             "type"->"show-text",
             "uuid"->output["uuid"],
-            "text"->output["packet"][[1]],
+            "text"->ToString[output["packet"][[1]],InputForm],
             "html"->StringJoin["<pre>",renderHTMLescape[output["packet"][[1]]],"</pre>"]
           |>];
         ],

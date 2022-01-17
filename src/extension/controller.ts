@@ -371,7 +371,7 @@ export class WLNotebookController {
         case "show-message":
         case "show-text":
           if (execution) {
-            const cellLabel = String(message.name);
+            const cellLabel = String(message.name || "");
             const renderMathJax = typeof message.text === "string" &&
               Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) && 
               this.getConfig("rendering.renderTexForm") === true;
