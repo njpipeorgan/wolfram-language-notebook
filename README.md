@@ -55,8 +55,8 @@ Check [Release Notes](https://github.com/njpipeorgan/wolfram-language-notebook/w
 
   - Check that `wolframscript` is installed, and it can be used in the terminal.
   - Wolfram Mathematica/Engine limits the number of kernels running simultaneously. Try [closing all Wolfram processes](https://support.wolfram.com/36360) before connecting to a kernel fron the notebook.
-  - [Open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) if the problem persists.
+  - If the problem persists, [Open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the content in the Output panel (Ctrl+Shift+U / ⇧⌘U) "Wolfram Language Notebook" tab.
 
 **The output of an evaluation was not what I expected.**
 
-  - Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only support a limited number of styling options for now. 
+  - Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only supports a limited number of styling options for now. 

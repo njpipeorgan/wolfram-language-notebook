@@ -28,7 +28,6 @@ const makeConfig = (argv, { entry, out, target, library = 'commonjs' }) => ({
     "glob": "commonjs glob",
     "util": "commonjs util",
     "zeromq": "commonjs zeromq",
-    "path": "commonjs path",
     "child_process": "commonjs child_process",
     "fs": "commonjs fs",
     "uuid": "commonjs uuid",
