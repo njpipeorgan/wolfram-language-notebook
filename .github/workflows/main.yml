@@ -21,7 +21,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Test Wolfram Engine installation
-        run: ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
+        run: ls
+        # ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   windows:
     runs-on: windows-latest
