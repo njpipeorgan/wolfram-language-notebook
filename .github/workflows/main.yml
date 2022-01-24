@@ -73,7 +73,9 @@ jobs:
           WOLFRAMINIT: "-pwfile !cloudlm.wolfram.com -entitlement ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}"
         run: |
           $env:Path += ';${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}\'
-          ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
+          cd ${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}
+          dir
+        # ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   build:
     if: false
