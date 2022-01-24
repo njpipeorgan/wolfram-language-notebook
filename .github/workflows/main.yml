@@ -21,16 +21,16 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Test Wolfram Engine installation
-        run: ls
+        run: which ${{ env.WOLFRAM_EXECUTABLE }}
         # ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
 
   windows:
     runs-on: windows-latest
     env:
       WOLFRAM_SYSTEM_ID: Windows-x86-64
-      WOLFRAM_EXECUTABLE: wolfram
-      WOLFRAMENGINE_INSTALL_MSI_DOWNLOAD_URL: https://files.wolframcdn.com/packages/winget/12.2.0.0/WolframEngine_12.2.0_WIN.msi
-      WOLFRAMENGINE_CACHE_KEY: WolframEngine-A
+      WOLFRAM_EXECUTABLE: wolframscript
+      WOLFRAMENGINE_INSTALL_MSI_DOWNLOAD_URL: https://files.wolframcdn.com/packages/winget/13.0.0.0/WolframEngine_13.0.0_WIN.msi
+      WOLFRAMENGINE_CACHE_KEY: WolframEngine-13.0.0
       WOLFRAMENGINE_INSTALLATION_SUBDIRECTORY: WolframEngine
     steps:
       - uses: actions/checkout@v2
@@ -76,7 +76,7 @@ jobs:
           $env:Path += ';${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}\'
           cd ${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}
           dir
-        # ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
+          ${{ env.WOLFRAM_EXECUTABLE }} -code Now
 
   build:
     if: false
