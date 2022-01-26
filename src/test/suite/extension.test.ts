@@ -1,15 +1,26 @@
-import * as assert from 'assert';
+import * as assert from "assert";
+import * as vscode from "vscode";
 
-// You can import and use all API from the 'vscode' module
-// as well as import your extension to test it
-import * as vscode from 'vscode';
-// import * as myExtension from '../extension';
+suite("Extension Test Suite", () => {
+  vscode.window.showInformationMessage("Start all tests.");
+  
+  test("New notebook", async () => {
+    await vscode.commands.executeCommand("wolframLanguageNotebook.newNotebook");
+    assert.ok(vscode.workspace.notebookDocuments.length > 0);
+    const notebookPath = vscode.workspace.notebookDocuments[0]?.uri?.fsPath;
+    assert.ok(typeof notebookPath === "string");
+  });
+  test("New notebook", async () => {
+    await vscode.commands.executeCommand("wolframLanguageNotebook.newNotebook");
+    assert.ok(vscode.workspace.notebookDocuments.length > 0);
+    const notebookPath = vscode.workspace.notebookDocuments[0]?.uri?.fsPath;
+    assert.ok(typeof notebookPath === "string");
+  });
 
-suite('Extension Test Suite', () => {
-  vscode.window.showInformationMessage('Start all tests.');
-
-  test('Sample test', () => {
-    assert.strictEqual(-1, [1, 2, 3].indexOf(5));
-    assert.strictEqual(-1, [1, 2, 3].indexOf(0));
+  test("Manage kernels", async () => {
+    await vscode.commands.executeCommand("wolframLanguageNotebook.manageKernels");
+    await new Promise(resolve => setTimeout(resolve, 500));
+    await vscode.commands.executeCommand('workbench.action.acceptSelectedQuickOpenItem');
+    await new Promise(resolve => setTimeout(resolve, 20000));
   });
 });

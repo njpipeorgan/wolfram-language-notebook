@@ -1,12 +1,9 @@
 # This workflow will do a clean install of node dependencies, cache/restore them, build the source code and run tests across different versions of node
 # For more information see: https://help.github.com/actions/language-and-framework-guides/using-nodejs-with-github-actions
 
-name: Node.js CI
+name: Extension CI
 
 on: [push, pull_request]
-
-env:
-  WOLFRAMENGINE_INFO_SCRIPT: ./.github/resources/info.wls
 
 jobs:
   linux:
@@ -20,11 +17,21 @@ jobs:
       WOLFRAMSCRIPT_ENTITLEMENTID: ${{ secrets.WOLFRAM_LICENSE_ENTITLEMENT_ID }}
     steps:
       - uses: actions/checkout@v2
-      - name: Test Wolfram Engine installation
-        run: which ${{ env.WOLFRAM_EXECUTABLE }}
-        # ${{ env.WOLFRAM_EXECUTABLE }} -script ${{ env.WOLFRAMENGINE_INFO_SCRIPT }}
+      - uses: actions/setup-node@v2
+        with:
+          node-version: ^16
+      - run: npm ci
+      - name: Build extension
+        run: |
+          npm run syntaxes
+          npm run compile
+      - name: Run extension tests
+        uses: GabrielBB/xvfb-action@v1.0
+        with:
+          run: npm test
 
   windows:
+    if: false
     runs-on: windows-latest
     env:
       WOLFRAM_SYSTEM_ID: Windows-x86-64
@@ -77,28 +84,3 @@ jobs:
           cd ${{ env.WOLFRAMENGINE_INSTALLATION_DIRECTORY }}
           dir
           ${{ env.WOLFRAM_EXECUTABLE }} -code Now
-
-  build:
-    if: false
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-    - uses: actions/checkout@v2
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: ^16
-    - run: npm ci
-    - name: Build extension
-      run: |
-        npm run syntaxes
-        npm run compile
-    - name: Run Wolfram Engine tests
-      run: |
-        wolframscript -code 2+2
-    - name: Run extension tests
-      uses: GabrielBB/xvfb-action@v1.0
-      with:
-        run: npm test
