@@ -135,7 +135,7 @@ const handleBracket = (elem: HTMLElement, style: Style, span: number[]) => {
     elem.setAttribute("ch", ch);
     elem.style.lineHeight = `${em}px`;
   }
-  const previousHeightCat = parseInt(elem.getAttribute("height") || "0");
+  const previousHeightCat = parseInt(elem.getAttribute("height") || "-1");
   const middle = (style.fontMetric.baseline - 0.5) * style.fontSize;
   const spanMax = Math.max(span[0] - middle - 0.05 * em, span[1] + middle - 0.05 * em);
   const bracketMaxHeight = "()\u2308\u2309\u230a\u230b\uf603\uf604\uf605\uf606\uf361".includes(ch) ? 100 * em : 2 * em;
