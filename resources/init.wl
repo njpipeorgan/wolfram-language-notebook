@@ -93,8 +93,9 @@ logWrite["$CommandLine="<>StringTake[ToString[$CommandLine],UpTo[200]]];
 logWrite["$ScriptCommandLine="<>StringTake[ToString[$ScriptCommandLine],UpTo[200]]];
 Quiet@LinkClose[$kernel];
 
-$kernel=LinkCreate[CreateUUID[]];
-$preemptive=LinkCreate[CreateUUID[]];
+createRandomID[]:=IntegerString[RandomInteger[36^16-1],36,16];
+$kernel=LinkCreate[createRandomID[]];
+$preemptive=LinkCreate[createRandomID[]];
 If[Head[$kernel]=!=LinkObject||Head[$preemptive]=!=LinkObject,
   logError["Failed to create main and preemptive links; $kernel="<>ToString[$kernel]];
 ]
