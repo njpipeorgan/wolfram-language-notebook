@@ -140,6 +140,11 @@
           "default": true,
           "description": "Quit the kernel when the last Wolfram Language notebook is closed."
         },
+        "wolframLanguageNotebook.editor.caseSensitiveAutocompletion": {
+          "type": "boolean",
+          "default": true,
+          "description": "Specifies whether auto-completion of the symbols is case-sensitive."
+        },
         "wolframLanguageNotebook.frontEnd.storeOutputExpressions": {
           "type": "boolean",
           "default": true,

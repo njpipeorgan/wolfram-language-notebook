@@ -49,7 +49,17 @@ export const wlCompletionProvider: vscode.CompletionItemProvider<vscode.Completi
     if (token.isCancellationRequested) {
       return defaultItems;
     }
-    const prefixWord = (prefixText.match(/[^$A-Z0-9]?([$A-Z][$A-Za-z0-9]*)$/) || ["", ""])[1];
+    const editorConfig = vscode.workspace.getConfiguration("wolframLanguageNotebook.editor");
+    const caseSensitive = ((editorConfig.get("caseSensitiveAutocompletion") as boolean) === true);
+
+    let regex = caseSensitive ? /(?:^|[^$A-Za-z])([$A-Z][$A-Za-z0-9]*)$/ : /(?:^|[^$A-Za-z])([$A-Za-z][$A-Za-z0-9]*)$/;
+
+    const prefixWord = (prefixText.match(regex) || ["", ""])[1];
+    console.log(regex);
+    console.log(prefixText.match(regex));
+    if (prefixWord.length === 0) {
+      return defaultItems;
+    }
     const range = new vscode.Range(position.line, position.character - prefixWord.length, position.line, position.character);
 
     let items: vscode.CompletionItem[] = [];
