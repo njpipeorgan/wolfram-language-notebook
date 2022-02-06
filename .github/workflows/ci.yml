@@ -3,10 +3,11 @@
 
 name: Extension CI
 
-on: []
+on: [push, pull_request]
 
 jobs:
   linux:
+    if: false
     runs-on: ubuntu-latest
     container:
       image: wolframresearch/wolframengine:latest
