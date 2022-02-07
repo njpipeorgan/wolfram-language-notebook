@@ -19,7 +19,7 @@ const path = require("path");
 const zmq = require("zeromq");
 import * as child_process from "child_process";
 import { readFileSync, writeFile } from "fs";
-import { deserializeMarkup } from "./serializer";
+import { deserializeMarkup } from "./markdown-serializer";
 import { tex2svg } from "./load-mathjax";
 
 

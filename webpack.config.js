@@ -84,5 +84,6 @@ module.exports = (env, argv) => [
   makeConfig(argv, { entry: './src/test/runTest.ts', out: './out/test/runTest.js', target: 'node' }),
   makeConfig(argv, { entry: './src/test/suite/index.ts', out: './out/test/suite/index.js', target: 'node' }),
   makeConfig(argv, { entry: './src/test/suite/extension.test.ts', out: './out/test/suite/extension.test.js', target: 'node' }),
+  makeConfig(argv, { entry: './src/test/suite/language.test.ts', out: './out/test/suite/language.test.js', target: 'node' }),
   // makeConfig(argv, { entry: './src/extension/extension.ts', out: './out/extension/extension.web.js', target: 'webworker' }),
 ];

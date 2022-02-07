@@ -203,6 +203,7 @@
   },
   "devDependencies": {
     "@types/glob": "^7.1.3",
+    "@types/lodash": "^4.14.178",
     "@types/markdown-it": "^12.2.3",
     "@types/mocha": "^8.2.2",
     "@types/node": "14.x",
@@ -218,6 +219,7 @@
     "fork-ts-checker-webpack-plugin": "^5.0.14",
     "glob": "^7.1.7",
     "js-yaml": "^4.1.0",
+    "lodash": "^4.17.21",
     "mocha": "^8.4.0",
     "style-loader": "^1.2.1",
     "ts-loader": "^9.2.2",
