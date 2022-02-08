@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import * as vscode from "vscode";
-import * as uuid from "uuid";
 const util = require("util");
 const path = require("path");
 const zmq = require("zeromq");
@@ -21,161 +20,22 @@ import * as child_process from "child_process";
 import { readFileSync, writeFile } from "fs";
 import { deserializeMarkup } from "./markdown-serializer";
 import { tex2svg } from "./load-mathjax";
-
-
-interface ExecutionItem {
-  id: string,
-  execution: vscode.NotebookCellExecution,
-  started?: boolean,
-  hasOutput?: boolean // replace with output if false; append output if true
-}
-
-class ExecutionQueue {
-  private queue: ExecutionItem[] = [];
-
-  constructor() {
-  }
-
-  empty(): boolean {
-    return this.queue.length === 0;
-  }
-
-  clear(): void {
-    this.queue.map(item => {
-      this.end(item.id, false);
-    });
-    this.queue = [];
-  }
-
-  push(execution: vscode.NotebookCellExecution): string {
-    const id = uuid.v4();
-    this.queue.push({ id, execution });
-    return id;
-  }
-
-  private findIndex(id: string): number {
-    return this.queue.findIndex(item => (item.id === id));
-  }
-
-  at(index: number): ExecutionItem | null {
-    return this.queue[index] || null;
-  }
-
-  find(id: string): ExecutionItem | null {
-    return this.at(this.findIndex(id));
-  }
-
-  remove(id: string): void {
-    const index = this.findIndex(id);
-    if (index >= 0) {
-      this.queue.splice(index, 1);
-    }
-  }
-
-  start(id: string): void {
-    const execution = this.find(id);
-    if (execution) {
-      execution.execution.start(Date.now());
-      execution.started = true;
-    }
-  }
-
-  end(id: string, succeed: boolean): void {
-    const execution = this.find(id);
-    if (execution) {
-      if (!(execution?.started)) {
-        execution.execution.start(Date.now());
-      }
-      execution.execution.end(succeed, Date.now());
-      this.remove(id);
-    }
-  }
-
-  pendingExecution(): ExecutionItem | null {
-    if (this.queue.length > 0 && !(this.queue[0]?.started)) {
-      return this.queue[0];
-    } else {
-      return null;
-    }
-  }
-}
-
-class KernelStatusBarItem {
-  private item: vscode.StatusBarItem;
-  private readonly baseText = " Wolfram Kernel";
-
-  constructor() {
-    this.item = vscode.window.createStatusBarItem(
-      "wolfram-language-notebook-kernel-status", vscode.StatusBarAlignment.Right, 100
-    );
-    this.item.name = "Wolfram Kernel";
-    this.item.command = "wolframLanguageNotebook.manageKernels";
-    this.setDisconnected();
-    this.item.show();
-  }
-
-  dispose() {
-    this.item.dispose();
-  }
-
-  show() {
-    this.item.show();
-  }
-
-  hide() {
-    this.item.hide();
-  }
-
-  setDisconnected() {
-    this.item.text = "$(close)" + this.baseText;
-    this.item.tooltip = "Currently not connected to a kernel";
-  }
-
-  setConnecting() {
-    this.item.text = "$(loading~spin)" + this.baseText;
-    this.item.tooltip = "Connecting to the kernel";
-  }
-
-  setConnected(tooltip: string = "", isRemote: boolean = false) {
-    this.item.text = (isRemote ? "$(remote)" : "$(check)") + this.baseText;
-    this.item.tooltip = tooltip || "Kernel connected";
-  }
-}
-
-class ExportNotebookStatusBarItem {
-  private item: vscode.StatusBarItem;
-
-  constructor() {
-    this.item = vscode.window.createStatusBarItem(
-      "wolfram-language-export-notebook-status", vscode.StatusBarAlignment.Right, 101
-    );
-    this.item.name = "Export Notebook";
-    this.item.text = "$(loading~spin) Generating Notebook";
-    this.item.command = "wolframLanguageNotebook.manageKernels";
-    this.item.hide();
-  }
-
-  show() {
-    this.item.show();
-  }
-
-  hide() {
-    this.item.hide();
-  }
-}
+import { ExecutionQueue } from "./notebook-kernel";
+import { KernelStatusBarItem, ExportNotebookStatusBarItem, NotebookOutputPanel } from "./ui-items";
+import { NotebookConfig } from "./notebook-config";
 
 export class WLNotebookController {
   readonly id = "wolfram-language-notebook-controller";
   readonly notebookType = "wolfram-language-notebook";
   readonly label = 'Wolfram Language';
-  readonly supportedLanguages = ["wolfram"];
+  readonly supportedLanguages = [ "wolfram" ];
 
   private readonly controller: vscode.NotebookController;
   private selectedNotebooks: Set<vscode.NotebookDocument> = new Set();
-  private notebookRendererMessaging: vscode.NotebookRendererMessaging;
-  private statusBarKernelItem = new KernelStatusBarItem();
+  private statusBarKernelItem = new KernelStatusBarItem(this.supportedLanguages);
   private statusBarExportItem = new ExportNotebookStatusBarItem();
-  private outputChannel = vscode.window.createOutputChannel("Wolfram Language Notebook");
+  private outputPanel = new NotebookOutputPanel("Wolfram Language Notebook");
+  private config = new NotebookConfig();
   private extensionPath: string = "";
   private disposables: any[] = [];
 
@@ -191,75 +51,48 @@ export class WLNotebookController {
     if (!this.extensionPath) {
       throw Error();
     }
-    this.outputChannelAppendLine(`WLNotebookController(), this.extensionPath = ${this.extensionPath}`);
+    this.outputPanel.print(`WLNotebookController(), this.extensionPath = ${this.extensionPath}`);
 
-    this.controller = vscode.notebooks.createNotebookController(
-      this.id, this.notebookType, this.label
-    );
-    this.notebookRendererMessaging = vscode.notebooks.createRendererMessaging("wolfram-language-notebook-renderer");
-    // this.notebookRendererMessaging.onDidReceiveMessage(e => {
-    //   switch (e.message.type) {
-    //     case "update-html":
-    //       const { id, value } = e.message;
-    //       this.selectedNotebooks.forEach(notebook => {
-    //         notebook.getCells().forEach(cell => {
-    //           if (cell.kind === vscode.NotebookCellKind.Code) {
-    //             cell.outputs.forEach(output => {
-    //             });
-    //           }
-    //         });
-    //       });
-    //       break;
-    //     default:
-    //   }
-    // });
-
+    this.controller = vscode.notebooks.createNotebookController(this.id, this.notebookType, this.label);
     this.controller.supportedLanguages = this.supportedLanguages;
     this.controller.supportsExecutionOrder = true;
     this.controller.executeHandler = this.execute.bind(this);
+
     this.controller.onDidChangeSelectedNotebooks(({ notebook, selected }) => {
       if (selected) {
         this.selectedNotebooks.add(notebook);
-        this.outputChannelAppendLine(`The controller is selected for a notebook ${notebook.uri.fsPath}`);
+        this.outputPanel.print(`The controller is selected for a notebook ${notebook.uri.fsPath}`);
         if (this.selectedNotebooks.size === 1 && !this.kernelConnected()) {
           // when the controller is selected for the first time
-          const defaultKernel = this.getConfig("kernel.connectOnOpeningNotebook");
+          const defaultKernel = this.config.get("kernel.connectOnOpeningNotebook");
           if (defaultKernel) {
-            this.launchKernel(this.getConfig("kernel.connectOnOpeningNotebook") as string);
+            this.launchKernel(this.config.get("kernel.connectOnOpeningNotebook") as string);
           }
         }
       } else {
         this.selectedNotebooks.delete(notebook);
-        this.outputChannelAppendLine(`The controller is unselected for a notebook ${notebook.uri.fsPath}`);
+        this.outputPanel.print(`The controller is unselected for a notebook ${notebook.uri.fsPath}`);
       }
-      this.outputChannelAppendLine(`There are ${this.selectedNotebooks.size} notebook(s) for which the controller is selected.`);
-      if (this.selectedNotebooks.size === 0 && this.getConfig("kernel.quitAutomatically")) {
+      this.outputPanel.print(`There are ${this.selectedNotebooks.size} notebook(s) for which the controller is selected.`);
+      if (this.selectedNotebooks.size === 0 && this.config.get("kernel.quitAutomatically")) {
         // when the last notebook was closed, and the user choose to quit kernel automatically
         this.quitKernel();
       }
     });
 
-    this.disposables.push(vscode.window.onDidChangeActiveTextEditor(event => {
-      if (event?.document && this.supportedLanguages.includes(event.document.languageId)) {
-        this.statusBarKernelItem.show();
-      } else if (!this.kernelConnected()) {
-        this.statusBarKernelItem.hide();
-      }
-    }));
-    this.disposables.push(vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration("wolframLanguageNotebook.rendering") ||
-        e.affectsConfiguration("wolframLanguageNotebook.frontEnd")
-      ) {
-        this.postConfigToKernel();
-      }
-    }));
+    // when notebook config changes, send a message to the kernel
+    this.config.onDidChange((config: NotebookConfig) => {
+      this.postMessageToKernel({type: "set-config", config: config.getKernelRelatedConfigs()});
+    });
+
     this.disposables.push(this.statusBarKernelItem);
     this.disposables.push(this.statusBarExportItem);
-    this.disposables.push(this.outputChannel);
+    this.disposables.push(this.outputPanel);
+    this.disposables.push(this.config);
 
     this.controller.dispose = () => {
       this.quitKernel();
-      this.outputChannelAppendLine(`Notebook controller is disposed; there are ${this.disposables.length} disposables.`);
+      this.outputPanel.print(`Notebook controller is disposed; there are ${this.disposables.length} disposables.`);
       this.disposables.forEach(item => {
         item.dispose();
       });
@@ -268,14 +101,6 @@ export class WLNotebookController {
 
   getController() {
     return this.controller;
-  }
-
-  private outputChannelAppendLine(str: string) {
-    this.outputChannel.appendLine("[" + new Date().toUTCString() + "] " + str);
-  }
-
-  private getConfig(key: string) {
-    return vscode.workspace.getConfiguration("wolframLanguageNotebook").get(key);
   }
 
   private getRandomPort(portRanges: string) {
@@ -306,7 +131,7 @@ export class WLNotebookController {
     if (this.socket !== undefined) {
       this.socket.send(typeof message === 'string' ? message : JSON.stringify(message));
     } else {
-      this.outputChannelAppendLine("The socket is not available; cannot post the message.");
+      this.outputPanel.print("The socket is not available; cannot post the message.");
     }
   }
 
@@ -340,7 +165,7 @@ export class WLNotebookController {
     while (true) {
       let [message] = await this.socket.receive().catch(() => {
         if (this.kernelConnected()) {
-          this.outputChannelAppendLine(`Failed to receive messages from the kernel, but the kernel is connected.`);
+          this.outputPanel.print(`Failed to receive messages from the kernel, but the kernel is connected.`);
         }
         return [new Error("receive-message")];
       });
@@ -351,8 +176,8 @@ export class WLNotebookController {
       try {
         message = JSON.parse(message);
       } catch (error) {
-        this.outputChannelAppendLine("Failed to parse the following message:");
-        this.outputChannelAppendLine(message);
+        this.outputPanel.print("Failed to parse the following message:");
+        this.outputPanel.print(message);
         continue;
       }
 
@@ -374,7 +199,7 @@ export class WLNotebookController {
             const cellLabel = String(message.name || "");
             const renderMathJax = typeof message.text === "string" &&
               Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) && 
-              this.getConfig("rendering.renderTexForm") === true;
+              this.config.get("rendering.renderTexForm") === true;
             const outputItems: vscode.NotebookCellOutputItem[] = [];
             if (renderMathJax) {
               outputItems.push(vscode.NotebookCellOutputItem.text(
@@ -384,7 +209,7 @@ export class WLNotebookController {
             if (typeof message.html === "string" && !renderMathJax) {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html"));
             }
-            if (typeof message.text === "string" && this.getConfig("frontEnd.storeOutputExpressions")) {
+            if (typeof message.text === "string" && this.config.get("frontEnd.storeOutputExpressions")) {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
             }
             const output = new vscode.NotebookCellOutput(outputItems);
@@ -469,46 +294,25 @@ export class WLNotebookController {
         case "update-symbol-usages-progress":
           break;
         default:
-          this.outputChannelAppendLine("The following message has an unexpect type:");
-          this.outputChannelAppendLine(JSON.stringify(message));
+          this.outputPanel.print("The following message has an unexpect type:");
+          this.outputPanel.print(JSON.stringify(message));
       }
     }
   }
-
-  private postConfigToKernel() {
-    const configNames = [
-      "frontEnd.storeOutputExpressions",
-      "rendering.outputSizeLimit",
-      "rendering.boxesTimeLimit",
-      "rendering.htmlTimeLimit",
-      "rendering.htmlMemoryLimit",
-      "rendering.imageWithTransparency",
-      "rendering.renderAsImages"
-    ];
-    const renderingConfig = vscode.workspace.getConfiguration("wolframLanguageNotebook");
-    let config: { [key: string]: any } = {};
-    configNames.forEach(name => {
-      config[name.split('.').pop() as string] = renderingConfig.get(name);
-    });
-    this.postMessageToKernel({
-      type: "set-config",
-      config: config
-    });
-  };
 
   private quitKernel() {
     if (this.kernel) {
       // clear executionQueue only when the kernel was connected
       this.executionQueue.clear();
       if (this.kernel.pid) {
-        this.outputChannelAppendLine(`Killing kernel process, pid = ${this.kernel.pid}`);
+        this.outputPanel.print(`Killing kernel process, pid = ${this.kernel.pid}`);
       }
       this.kernel.kill("SIGKILL");
       this.kernel = undefined;
       this.connectingtoKernel = false;
     }
     if (this.socket !== undefined) {
-      this.outputChannelAppendLine("Closing socket");
+      this.outputPanel.print("Closing socket");
       this.socket.close();
       this.socket = undefined;
     }
@@ -516,7 +320,7 @@ export class WLNotebookController {
   };
 
   private showKernelLaunchFailed(kernelName: string = "") {
-    this.outputChannel.show();
+    this.outputPanel.show();
     vscode.window.showErrorMessage(
       `Failed to connect to the kernel${kernelName ? " \"" + kernelName + "\"" : ""}.`,
       "Try Again", "Test in Terminal", "Edit configurations"
@@ -535,8 +339,8 @@ export class WLNotebookController {
   }
 
   private launchKernelWithName(kernelName: string, kernel: any, testInTerminal: boolean = false) {
-    this.outputChannel.clear();
-    let connectionTimeout = this.getConfig("kernel.connectionTimeout") as number;
+    this.outputPanel.clear();
+    let connectionTimeout = this.config.get("kernel.connectionTimeout") as number;
     if (!(1000 < connectionTimeout)) {
      connectionTimeout = 1000; // milliseconds
     }
@@ -548,12 +352,12 @@ export class WLNotebookController {
     const sshCredential = String(kernel?.sshCredential || "none");
     const kernelPort = this.getRandomPort(String(kernel?.ports));
 
-    this.outputChannelAppendLine(`kernelIsRemote = ${kernelIsRemote}, kernelPort = ${kernelPort}`);
+    this.outputPanel.print(`kernelIsRemote = ${kernelIsRemote}, kernelPort = ${kernelPort}`);
 
     const kernelInitPath = path.join(this.extensionPath, 'resources', 'init-compressed.txt');
     const kernelRenderInitPath = path.join(this.extensionPath, 'resources', 'render-html.wl');
-    this.outputChannelAppendLine(`kernelInitPath = ${kernelInitPath}`);
-    this.outputChannelAppendLine(`kernelRenderInitPath = ${kernelRenderInitPath}`);
+    this.outputPanel.print(`kernelInitPath = ${kernelInitPath}`);
+    this.outputPanel.print(`kernelRenderInitPath = ${kernelRenderInitPath}`);
     let kernelInitString = "";
     let kernelRenderInitString = "";
 
@@ -593,8 +397,8 @@ export class WLNotebookController {
       ];
     }
 
-    this.outputChannelAppendLine(`launchCommand = ${String(launchCommand).slice(0, 200)}`);
-    this.outputChannelAppendLine(`launchArguments = ${String(launchArguments).slice(0, 200)}`);
+    this.outputPanel.print(`launchCommand = ${String(launchCommand).slice(0, 200)}`);
+    this.outputPanel.print(`launchArguments = ${String(launchArguments).slice(0, 200)}`);
 
     if (testInTerminal) {
       const terminal = vscode.window.createTerminal("Wolfram Language");
@@ -604,7 +408,6 @@ export class WLNotebookController {
     } else {
       this.connectingtoKernel = true;
       this.statusBarKernelItem.setConnecting();
-      this.statusBarKernelItem.show();
 
       this.kernel = child_process.spawn(launchCommand, launchArguments, { stdio: "pipe" });
 
@@ -617,16 +420,16 @@ export class WLNotebookController {
           return;
         }
         if (this.connectingtoKernel) {
-          this.outputChannelAppendLine("Received the following data from kernel:");
-          this.outputChannelAppendLine(`${data.toString()}`);
+          this.outputPanel.print("Received the following data from kernel:");
+          this.outputPanel.print(`${data.toString()}`);
         }
         if (isFirstMessage) {
           if (message.startsWith("<INITIALIZATION STARTS>") || ("<INITIALIZATION STARTS>").startsWith(message)) {
             isFirstMessage = false;
           } else {
-            this.outputChannelAppendLine("The first message is expected to be <INITIALIZATION STARTS>, instead of the message above.");
+            this.outputPanel.print("The first message is expected to be <INITIALIZATION STARTS>, instead of the message above.");
             if (message.startsWith("Mathematica ") || message.startsWith("Wolfram ")) {
-              this.outputChannelAppendLine("  It seems that a WolframKernel is launched, but wolframscript is required");
+              this.outputPanel.print("  It seems that a WolframKernel is launched, but wolframscript is required");
             }
             this.quitKernel();
             this.showKernelLaunchFailed(kernelName);
@@ -648,14 +451,14 @@ export class WLNotebookController {
             if (received instanceof Error) {
               throw received;
             }
-            this.outputChannelAppendLine("Received the following test message from kernel:");
-            this.outputChannelAppendLine(`${received.toString()}`);
+            this.outputPanel.print("Received the following test message from kernel:");
+            this.outputPanel.print(`${received.toString()}`);
             const message = JSON.parse(received.toString());
             if (message["type"] !== "test" || message["text"] !== rand) {
               throw new Error("test");
             }
             this.evaluateFrontEnd(kernelRenderInitString, false);
-            this.postConfigToKernel();
+            this.postMessageToKernel({type: "set-config", config: this.config.getKernelRelatedConfigs()});
             this.connectingtoKernel = false;
             this.statusBarKernelItem.setConnected(message["version"] || "", kernelIsRemote);
             try {
@@ -665,10 +468,10 @@ export class WLNotebookController {
           } catch (error) {
             if (error instanceof Error) {
               if (error.message === "timeout") {
-                this.outputChannelAppendLine("The kernel took too long to respond through the ZeroMQ link.");
+                this.outputPanel.print("The kernel took too long to respond through the ZeroMQ link.");
               } else if (error.message === "test") {
-                this.outputChannelAppendLine("The kernel responded with a wrong test message, as above");
-                this.outputChannelAppendLine("  The expected message should contain: " + JSON.stringify({type: "test", text: rand}));
+                this.outputPanel.print("The kernel responded with a wrong test message, as above");
+                this.outputPanel.print("  The expected message should contain: " + JSON.stringify({type: "test", text: rand}));
               }
             }
             this.quitKernel();
@@ -677,12 +480,12 @@ export class WLNotebookController {
         }
       });
       this.kernel.stderr.on("data", (data: Buffer) => {
-        this.outputChannelAppendLine("Received the following data from kernel (stderr):");
-        this.outputChannelAppendLine(`${data.toString()}`);
+        this.outputPanel.print("Received the following data from kernel (stderr):");
+        this.outputPanel.print(`${data.toString()}`);
       });
       this.kernel.on("exit", (code: number, signal: string) => {
         this.quitKernel();
-        this.outputChannelAppendLine(`Process exited with code ${code} and signal ${signal}.`);
+        this.outputPanel.print(`Process exited with code ${code} and signal ${signal}.`);
         if (this.restartAfterExitKernel) {
           this.restartAfterExitKernel = false;
           this.launchKernel();
@@ -691,7 +494,7 @@ export class WLNotebookController {
         }
       });
       this.kernel.on("error", (err: Error) => {
-        this.outputChannelAppendLine(`Error occured in spwaning the kernel process: \n${err}`);
+        this.outputPanel.print(`Error occured in spwaning the kernel process: \n${err}`);
         this.quitKernel();
         this.showKernelLaunchFailed(kernelName);
       });
@@ -705,7 +508,7 @@ export class WLNotebookController {
       return;
     }
     this.quitKernel();
-    const kernels = this.getConfig("kernel.configurations") as any;
+    const kernels = this.config.get("kernel.configurations") as any;
     const numKernels = Object.keys(kernels).length;
 
     if (kernelName === undefined) {
@@ -789,7 +592,7 @@ export class WLNotebookController {
   }
 
   private async addNewKernel() {
-    const previousKernels = this.getConfig("kernel.configurations") as any;
+    const previousKernels = this.config.get("kernel.configurations") as any;
 
     const name = await vscode.window.showInputBox({
       prompt: "Enter the name of a new kernel, or an existing kernel to edit it"
@@ -944,7 +747,7 @@ export class WLNotebookController {
   }
 
   private checkoutExecutionQueue() {
-    const execution = this.executionQueue.pendingExecution();
+    const execution = this.executionQueue.getNextPendingExecution();
     if (execution) {
       if (this.kernelConnected()) {
         // the kernel is ready
