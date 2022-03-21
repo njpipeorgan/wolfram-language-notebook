@@ -192,7 +192,7 @@
         "wolframLanguageNotebook.rendering.invertBrightnessInDarkThemes": {
           "type": "boolean",
           "default": true,
-          "description": "Specifies whether the brightness of the images should be inverted in dark and high contrast themes."
+          "description": "When an expression is evaluated, this option specifies whether the brightness of the images in the output should be inverted in dark and high contrast themes. "
         }
       }
     }
