@@ -188,6 +188,11 @@
           "type": "boolean",
           "default": false,
           "description": "Specifies whether the images shall be rasterized with a transparent background (the time of rasterizations will double)."
+        },
+        "wolframLanguageNotebook.rendering.invertBrightnessInDarkThemes": {
+          "type": "boolean",
+          "default": true,
+          "description": "Specifies whether the brightness of the images should be inverted in dark and high contrast themes."
         }
       }
     }

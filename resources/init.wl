@@ -7,7 +7,7 @@
 SetAttributes[logWrite,HoldAllComplete];
 logWrite[message_]:=WriteString[Streams["stdout"],message];
 SetAttributes[logWriteDebug,HoldAllComplete];
-logWriteDebug[message_]:=Null;(*logWrite[message];*)
+logWriteDebug[message_]:=(*Null;*)logWrite[message];
 logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
 
 
@@ -54,7 +54,8 @@ $config=<|
   "htmlTimeLimit"-><|"value"->10000(*ms*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "htmlMemoryLimit"-><|"value"->200(*MB*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "imageWithTransparency"-><|"value"->False,"requires"->(#===True||#===False&)|>,
-  "renderAsImages"-><|"value"->False,"requires"->(#===True||#===False&)|>
+  "renderAsImages"-><|"value"->False,"requires"->(#===True||#===False&)|>,
+  "invertBrightnessInDarkThemes"-><|"value"->True,"requires"->(#===True||#===False&)|>
 |>;
 
 
@@ -137,6 +138,16 @@ Protect[EnterExpressionPacket,EvaluatePacket,ReturnExpressionPacket,ReturnPacket
 Unprotect[Short];
 SetAttributes[Short,HoldFirst];
 Protect[Short];
+
+
+ClearAll[queuePush,queuePop,queueClear,stackPush,stackPop,stackClear];
+SetAttributes[{queuePush, queuePop,queueClear,stackPush,stackPop,stackClear}, HoldFirst];
+queuePush[q_, value_]:=Module[{},AssociateTo[q, $ModuleNumber->value]];
+queuePop[q_]:=If[Length[q]>0,With[{first=Take[q,1]},KeyDropFrom[q, Keys@first];first[[1]]],Null];
+queueClear[q_]:=Module[{},q=<||>];
+stackPush[q_, value_]:=Module[{},AssociateTo[q, $ModuleNumber->value]];
+stackPop[q_]:=If[Length[q]>0,With[{last=Take[q,-1]},KeyDropFrom[q, Keys@last];last[[1]]],Null];
+stackClear[q_]:=Module[{},q=<||>];
 
 
 ClearAll[sendMessage,readMessage];
@@ -246,7 +257,10 @@ handleMessage[]:=Module[{},
       "evaluate-cell",
         If[SyntaxQ[$message["text"]],
           packets=List@@Thread[EnterExpressionPacket[#],EnterExpressionPacket]&@
-            ToExpression[$message["text"],InputForm,EnterExpressionPacket];,
+            ToExpression[$message["text"],InputForm,EnterExpressionPacket];
+          packets=Select[packets,#=!=EnterExpressionPacket[Null]&];
+          If[Length[packets]==0,packets={EnterExpressionPacket[Null]}];
+          ,
           If[$hasCodeParser,
             syntaxErrors=Cases[CodeParser`CodeParse[$message["text"]],(ErrorNode|AbstractSyntaxErrorNode|UnterminatedGroupNode|UnterminatedCallNode)[___],Infinity];
             logWriteDebug["The expression has the following syntax errors: "<>ToString[syntaxErrors]];,
@@ -401,6 +415,7 @@ handleMainLink[]:=Module[{},
       If[LinkReadyQ[$kernel]===False,
         $messagetext=readMessage[0.03];
         If[Head[$messagetext]===String,handleMessage[];];
+        If[Length[$outputQueue]>0,handleOutput[];];
         Continue[];
       ];
       packet=Quiet@LinkRead[$kernel];

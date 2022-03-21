@@ -419,7 +419,7 @@ export class WLNotebookController {
           vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
           return;
         }
-        if (this.connectingtoKernel) {
+        if (true || this.connectingtoKernel) {
           this.outputPanel.print("Received the following data from kernel:");
           this.outputPanel.print(`${data.toString()}`);
         }

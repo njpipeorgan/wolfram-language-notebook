@@ -48,7 +48,8 @@ export class NotebookConfig {
       "rendering.htmlTimeLimit",
       "rendering.htmlMemoryLimit",
       "rendering.imageWithTransparency",
-      "rendering.renderAsImages"
+      "rendering.renderAsImages",
+      "rendering.invertBrightnessInDarkThemes"
     ];
     const renderingConfig = vscode.workspace.getConfiguration("wolframLanguageNotebook");
     let config: { [key: string]: any } = {};
