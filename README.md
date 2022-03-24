@@ -62,3 +62,4 @@ Check [Release Notes](https://github.com/njpipeorgan/wolfram-language-notebook/w
 **The output of an evaluation was not what I expected.**
 
   - Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only supports a limited number of styling options for now. 
+  - The brightness of the images are invert by default in dark and high contrast themes. Uncheck `rendering.invertBrightnessInDarkThemes` in the settings to disable this feature (outputs are updated after re-evaluations). 

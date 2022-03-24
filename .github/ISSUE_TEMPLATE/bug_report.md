@@ -8,7 +8,7 @@ assignees: ''
 ---
 
 **Describe the bug**
-A clear and concise description of what the bug is.
+A clear and concise description of what the bug is. (Have you checked [FAQ](https://github.com/njpipeorgan/wolfram-language-notebook#faq)?)
 
 **Expected behavior**
 A clear and concise description of what you expected to happen.
