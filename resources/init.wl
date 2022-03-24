@@ -7,7 +7,7 @@
 SetAttributes[logWrite,HoldAllComplete];
 logWrite[message_]:=WriteString[Streams["stdout"],message];
 SetAttributes[logWriteDebug,HoldAllComplete];
-logWriteDebug[message_]:=(*Null;*)logWrite[message];
+logWriteDebug[message_]:=Null;(*logWrite[message];*)
 logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
 
 
@@ -257,7 +257,7 @@ handleMessage[]:=Module[{},
       "evaluate-cell",
         If[SyntaxQ[$message["text"]],
           packets=List@@Thread[EnterExpressionPacket[#],EnterExpressionPacket]&@
-            ToExpression[$message["text"],InputForm,EnterExpressionPacket];
+            Quiet@ToExpression[$message["text"],InputForm,EnterExpressionPacket];
           packets=Select[packets,#=!=EnterExpressionPacket[Null]&];
           If[Length[packets]==0,packets={EnterExpressionPacket[Null]}];
           ,
