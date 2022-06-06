@@ -1,7 +1,5 @@
 # Notebook support for Wolfram Language in VS Code
 
-![example workflow](https://github.com/njpipeorgan/wolfram-language-notebook/actions/workflows/ci.yml/badge.svg)
-
 ## Prerequisites
 
 - `wolframscript`, shipped with [Wolfram Mathematica](https://www.wolfram.com/mathematica/) / [Wolfram Engine](https://www.wolfram.com/engine/) 12.0 or higher;

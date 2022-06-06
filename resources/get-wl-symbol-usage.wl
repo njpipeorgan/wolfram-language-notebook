@@ -67,9 +67,6 @@ ClearAttributes[SyntaxInformation,HoldAllComplete];
 Protect[SyntaxInformation];
 
 
-!TrueQ@FreeQ[#,"ArgumentsPattern"]&/@wlSymbolSyntax
-
-
 wlTypeStr=MapThread[
   Which[
     !FreeQ[#2,"ArgumentsPattern"],"function",

@@ -15,11 +15,11 @@
 import * as vscode from "vscode";
 
 export class NotebookConfig {
-  private config: vscode.WorkspaceConfiguration;
+  // private config: vscode.WorkspaceConfiguration;
   private disposables: any[] = [];
 
   constructor() {
-    this.config = vscode.workspace.getConfiguration("wolframLanguageNotebook");
+    // this.config = vscode.workspace.getConfiguration("wolframLanguageNotebook");
   }
 
   dispose() {
@@ -37,7 +37,12 @@ export class NotebookConfig {
   }
 
   get(configName: string) {
-    return this.config.get(configName);
+    return vscode.workspace.getConfiguration("wolframLanguageNotebook").get(configName);
+  }
+
+  async update(configName: string, value: any, configurationTarget: any) {
+    return await vscode.workspace.getConfiguration("wolframLanguageNotebook").update(
+      configName, value, configurationTarget);
   }
 
   getKernelRelatedConfigs() {

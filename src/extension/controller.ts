@@ -677,9 +677,9 @@ export class WLNotebookController {
       { [name]: { type, command, ports, sshCommand: "ssh", sshHost, sshCredentialType, sshCredential } } :
       { [name]: { type, command, ports } };
 
-    const config = vscode.workspace.getConfiguration("wolframLanguageNotebook");
-    const update = await config.update("kernel.configurations",
-      { ...config.get("kernel.configurations"), ...newKernel },
+    console.log(`Existing kernels: ${this.config.get("kernel.configurations")}`);
+    const update = await this.config.update("kernel.configurations",
+      { ...(this.config.get("kernel.configurations") as {[key: string]: any}), ...newKernel },
       vscode.ConfigurationTarget.Global
     );
 
