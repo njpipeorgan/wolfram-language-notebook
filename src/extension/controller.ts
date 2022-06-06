@@ -677,7 +677,7 @@ export class WLNotebookController {
       { [name]: { type, command, ports, sshCommand: "ssh", sshHost, sshCredentialType, sshCredential } } :
       { [name]: { type, command, ports } };
 
-    console.log(`Existing kernels: ${this.config.get("kernel.configurations")}`);
+    this.outputPanel.print(`Existing kernels: ${this.config.get("kernel.configurations")}`);
     const update = await this.config.update("kernel.configurations",
       { ...(this.config.get("kernel.configurations") as {[key: string]: any}), ...newKernel },
       vscode.ConfigurationTarget.Global
