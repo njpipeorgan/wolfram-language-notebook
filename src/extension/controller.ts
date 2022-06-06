@@ -677,11 +677,9 @@ export class WLNotebookController {
       { [name]: { type, command, ports, sshCommand: "ssh", sshHost, sshCredentialType, sshCredential } } :
       { [name]: { type, command, ports } };
 
-    this.outputPanel.print(`Existing kernels: ${this.config.get("kernel.configurations")}`);
-    const update = await this.config.update("kernel.configurations",
-      { ...(this.config.get("kernel.configurations") as {[key: string]: any}), ...newKernel },
-      vscode.ConfigurationTarget.Global
-    );
+    const prevKernelConfigJSON = JSON.stringify(this.config.get("kernel.configurations"));
+    const newKernelConfig = {...JSON.parse(prevKernelConfigJSON), ...newKernel};
+    const update = await this.config.update("kernel.configurations",newKernelConfig, vscode.ConfigurationTarget.Global);
 
     vscode.window.showInformationMessage("A new kernel has been added.", "Start this kernel", "Dismiss").then(value => {
       if (value === "Start this kernel") {
