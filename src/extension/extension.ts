@@ -28,7 +28,7 @@ export function activate(context: vscode.ExtensionContext) {
     notebookController.manageKernel();
   }));
   context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.newNotebook", async () => {
-    const newNotebook = await vscode.workspace.openNotebookDocument("wolfram-language-notebook", {cells: []});
+    const newNotebook = await vscode.workspace.openNotebookDocument("wolfram-language-notebook", { cells: [] });
     await vscode.commands.executeCommand('vscode.open', newNotebook.uri);
   }));
   context.subscriptions.push(vscode.commands.registerCommand("wolframLanguageNotebook.openConfigurations", () => {
@@ -40,9 +40,12 @@ export function activate(context: vscode.ExtensionContext) {
       notebookController.exportNotebook(activeUri);
     }
   }));
-  setWLSymbolData(readFileSync(context.extensionPath + "/resources/wl-symbol-usages.txt").toString());
-  context.subscriptions.push(vscode.languages.registerCompletionItemProvider("wolfram", wlCompletionProvider));
-  context.subscriptions.push(vscode.languages.registerHoverProvider("wolfram", wlHoverProvider));
+
+  if (vscode.workspace.getConfiguration("wolframLanguageNotebook.editor").get<Boolean>("languageFeatures")) {
+    setWLSymbolData(readFileSync(context.extensionPath + "/resources/wl-symbol-usages.txt").toString());
+    context.subscriptions.push(vscode.languages.registerCompletionItemProvider("wolfram", wlCompletionProvider));
+    context.subscriptions.push(vscode.languages.registerHoverProvider("wolfram", wlHoverProvider));
+  }
 }
 
 // This method is called when your extension is deactivated

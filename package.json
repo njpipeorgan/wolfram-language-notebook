@@ -140,6 +140,11 @@
           "default": true,
           "description": "Quit the kernel when the last Wolfram Language notebook is closed."
         },
+        "wolframLanguageNotebook.editor.languageFeatures": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether to enable native language features (e.g. hover and completion) in case these are already provided by other tools (e.g. Wolfram Language Server). Needs to reload the extension."
+        },
         "wolframLanguageNotebook.editor.caseSensitiveAutocompletion": {
           "type": "boolean",
           "default": true,
