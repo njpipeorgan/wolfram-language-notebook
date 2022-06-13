@@ -679,7 +679,7 @@ export class WLNotebookController {
 
     const prevKernelConfigJSON = JSON.stringify(this.config.get("kernel.configurations"));
     const newKernelConfig = {...JSON.parse(prevKernelConfigJSON), ...newKernel};
-    const update = await this.config.update("kernel.configurations",newKernelConfig, vscode.ConfigurationTarget.Global);
+    const update = await this.config.update("kernel.configurations", newKernelConfig, vscode.ConfigurationTarget.Global);
 
     vscode.window.showInformationMessage("A new kernel has been added.", "Start this kernel", "Dismiss").then(value => {
       if (value === "Start this kernel") {

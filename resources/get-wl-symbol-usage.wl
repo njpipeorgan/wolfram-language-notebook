@@ -78,3 +78,8 @@ wlTypeStr=MapThread[
 wlUsagesDecoratedStr=Map[decorateUsageBold,wlUsagesStr,{2}];
 wlDataStr=Table[<|"name"->#1,"type"->wlTypeStr[[i]],"version"->#2,"rank"->If[MissingQ[#3],99999,"All"/.#3],"url"->#4[[1]],"usage"->StringRiffle[wlUsagesDecoratedStr[[i]],"\n\n---\n"]|>&@@wlData[[i]],{i,1,Length@wlData}];
 wlSymbolUsagesText=StringRiffle[toJSON/@wlDataStr[[;;]],"\n"];
+
+
+stream=OpenWrite[NotebookDirectory[]<>"/wl-symbol-usages.txt",BinaryFormat->True];
+BinaryWrite[stream,StringToByteArray[wlSymbolUsagesText,"UTF-8"]];
+Close[stream];
