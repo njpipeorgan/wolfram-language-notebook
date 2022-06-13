@@ -27,11 +27,27 @@ Add a code cell, type Wolfram language code  in the cell, and evaluate it.
 
 **Export as Wolfram notebook**: The notebooks can be exported as Wolfram notebooks, containing markdown cells, code cells and their outputs.
 
-**Remote kernel**: When configured, the notebook can establish an ssh connection to the remote machine and launch a kernel on it. Computations are done remotely, but code and outputs are stored locally.
+**Remote kernel**: When configured, the notebook can establish an ssh connection to the remote machine, and the computations are done remotely. Code and outputs can be stored either on the remote machine or locally.
 
 ## Kernel Configuration
 
-To add a new kernel, click **⨉ Wolfram Kernel** in the status bar and choose **Add a new kernel** (when no kernel is currently connected). By default, the command launching the kernels is `wolframscript` and the port is randomly selected between 49152 and 65535. For remote kernels, you may choose the private key file for ssh authentication, or skip this step if it is already available to `ssh`.
+To add a new kernel, click **⨉ Wolfram Kernel** in the status bar and choose **Add a new kernel** (when no kernel is currently connected). By default, the command launching the kernels is `wolframscript` and the port is randomly selected between 49152 and 65535. To edit or remove kernel configurations, find `kernel.configurations` in the extension settings page, and edit settings.json.
+
+## Remote Kernel
+
+### Using VS Code Remote Development
+
+With this approach, you use VS Code to connect to remote machines, containers, or [WSL](https://docs.microsoft.com/windows/wsl/), and to work with the files and the kernel on the remote system. To do this, you need to:
+
+  1. Install [Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack);
+  2. [Follow the guide](https://code.visualstudio.com/docs/remote/remote-overview#_getting-started) to connect to a remote system; and
+  3. Click **⨉ Wolfram Kernel** to add or launch a kernel on the remote system.
+
+### Launch Remote Kernel via SSH
+
+With this approach, you launch and connect to a remote kernel via SSH: code and files are stored locally, and the communication with the remote kernel is managed by the extension. 
+
+To add a remote kernel, choose **On a remote machine**, and provide the private key file for ssh authentication (skip the private key if it is already available to `ssh`).
 
 To edit or remove kernel configurations, find `kernel.configurations` in the extension settings page, and edit settings.json. Each kernel is an entry with the kernel name as the key and the following configurations as the value: 
 

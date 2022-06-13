@@ -30,6 +30,9 @@ export class WLNotebookController {
   readonly label = 'Wolfram Language';
   readonly supportedLanguages = [ "wolfram" ];
 
+  private thisExtension: vscode.Extension<any> | undefined;
+  private isInWorkspace: boolean | undefined;
+  private settingsCommandName: string = "workbench.action.openSettingsJson";
   private readonly controller: vscode.NotebookController;
   private selectedNotebooks: Set<vscode.NotebookDocument> = new Set();
   private statusBarKernelItem = new KernelStatusBarItem(this.supportedLanguages);
@@ -47,11 +50,17 @@ export class WLNotebookController {
   private executionQueue = new ExecutionQueue();
 
   constructor() {
-    this.extensionPath = vscode.extensions.getExtension("njpipeorgan.wolfram-language-notebook")?.extensionPath || "";
+    this.thisExtension = vscode.extensions.getExtension("njpipeorgan.wolfram-language-notebook");
+    this.isInWorkspace = this.thisExtension?.extensionKind === vscode.ExtensionKind.Workspace;
+    if (this.isInWorkspace) {
+      this.settingsCommandName = "workbench.action.openRemoteSettingsFile";
+    }
+    this.extensionPath = this.thisExtension?.extensionPath || "";
     if (!this.extensionPath) {
       throw Error();
     }
-    this.outputPanel.print(`WLNotebookController(), this.extensionPath = ${this.extensionPath}`);
+    this.outputPanel.print(
+      `WLNotebookController(), this.isInWorkspace = ${this.isInWorkspace}, this.extensionPath = ${this.extensionPath}`);
 
     this.controller = vscode.notebooks.createNotebookController(this.id, this.notebookType, this.label);
     this.controller.supportedLanguages = this.supportedLanguages;
@@ -331,7 +340,7 @@ export class WLNotebookController {
         this.launchKernel(kernelName || undefined, true);
       } else if (value === "Edit configurations") {
         vscode.commands.executeCommand(
-          "workbench.action.openSettings",
+          this.settingsCommandName,
           "wolframLanguageNotebook.kernel.configurations"
         );
       }
@@ -560,7 +569,7 @@ export class WLNotebookController {
             this.addNewKernel();
           } else if (value.label === "$(notebook-edit) Edit kernel configurations in settings") {
             vscode.commands.executeCommand(
-              "workbench.action.openSettings",
+              this.settingsCommandName,
               "wolframLanguageNotebook.kernel.configurations"
             );
           }
@@ -573,12 +582,14 @@ export class WLNotebookController {
         this.launchKernelWithName(kernelName, kernel, testInTerminal);
       } else {
         vscode.window.showErrorMessage(
-          `Failed to find the kernel ${kernelName} in configurations.\nA kernel must contain a \"command\" field.`,
+          typeof kernel !== "object" ?
+          `Failed to find the kernel ${kernelName} in configurations.` :
+          `Kernel ${kernelName} must contain a \"command\" field.`,
           "Edit configurations", "Dismiss"
         ).then(value => {
           if (value === "Edit configurations") {
             vscode.commands.executeCommand(
-              "workbench.action.openSettings",
+              this.settingsCommandName,
               "wolframLanguageNotebook.kernel.configurations"
             );
           }
@@ -604,14 +615,18 @@ export class WLNotebookController {
     const exists = name in previousKernels && typeof previousKernels[name] === "object";
     const previously = exists ? previousKernels[name] : {};
 
-    let type = await vscode.window.showQuickPick(["On this machine", "On a remote machine"], {
-      placeHolder: `Where will this kernel be launched? ${exists ? `(was ${previously?.type === "remote" ? "remote" : "local"})` : ""
+    const kernelLocationPrompt = this.isInWorkspace ? 
+      ["On this remote system", "On a different machine (via SSH)"] :
+      ["On this machine", "On a remote machine (via SSH)"];
+    let type = await vscode.window.showQuickPick(kernelLocationPrompt, {
+      placeHolder: `Where will this kernel be launched? ${exists ? 
+          `(was: ${kernelLocationPrompt[previously?.type === "remote" ? 1 : 0]})` : ""
         }`
     });
     if (!type) {
       return;
     } else {
-      type = (type === "On this machine") ? "local" : "remote";
+      type = (type === kernelLocationPrompt[0]) ? "local" : "remote";
     }
 
     let sshHost: any;
@@ -702,7 +717,7 @@ export class WLNotebookController {
           this.restartAfterExitKernel = true;
         } else if (value?.label === "$(notebook-edit) Edit kernel configurations in settings") {
           vscode.commands.executeCommand(
-            "workbench.action.openSettings",
+            this.settingsCommandName,
             "wolframLanguageNotebook.kernel.configurations"
           );
         }
