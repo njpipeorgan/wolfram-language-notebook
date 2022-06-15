@@ -76,4 +76,9 @@ Check [Release Notes](https://github.com/njpipeorgan/wolfram-language-notebook/w
 **The output of an evaluation was not what I expected.**
 
   - Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only supports a limited number of styling options for now. 
-  - The brightness of the images are invert by default in dark and high contrast themes. Uncheck `rendering.invertBrightnessInDarkThemes` in the settings to disable this feature (outputs are updated after re-evaluations). 
+  - The brightness of the images are invert by default in dark and high contrast themes. Uncheck `rendering.invertBrightnessInDarkThemes` in the extension settings to disable this feature (outputs are updated after re-evaluations). 
+
+**How can I use the notebook with [Wolfram Language Server](https://github.com/kenkangxgwe/lsp-wl)?**
+
+  - With Wolfram Language Server installed, the features, like hover and completion, are enabled in Wolfram Language cells.
+  - Meanwhile, you can uncheck `editor.languageFeatures` in the extension settings to disable the built-in language features provided by Wolfram Language Notebook.
