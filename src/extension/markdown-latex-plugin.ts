@@ -24,7 +24,7 @@ function isValidDelim(state: any, pos: number) {
 }
 
 function math_inline(state: any, silent: boolean) {
-    var start, match, token, res, pos;
+    let start, match, token, res, pos;
 
     if (state.src[state.pos] !== "$") { return false; }
 
@@ -85,7 +85,7 @@ function math_inline(state: any, silent: boolean) {
 }
 
 function math_block(state: any, start: number, end: number, silent: boolean){
-    var firstLine, lastLine, next, lastPos, found = false, token,
+    let firstLine, lastLine, next, lastPos, found = false, token,
         pos = state.bMarks[start] + state.tShift[start],
         max = state.eMarks[start];
 
@@ -138,11 +138,11 @@ function math_block(state: any, start: number, end: number, silent: boolean){
 
 module.exports = function math_plugin(md: any, _options: any) {
 
-    var inlineRenderer = function(tokens: any[], idx: number){
+    const inlineRenderer = function(tokens: any[], idx: number){
         return "<tex>" + Buffer.from(tokens[idx].content).toString('base64') + "</tex>";
     };
 
-    var blockRenderer = function(tokens: any[], idx: number){
+    const blockRenderer = function(tokens: any[], idx: number){
         return "<p><tex>" + Buffer.from(tokens[idx].content).toString('base64') + "</tex></p>\n";
     };
 
