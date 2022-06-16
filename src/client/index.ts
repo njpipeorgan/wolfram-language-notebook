@@ -52,14 +52,12 @@ export const activate: ActivationFunction = context => {
           //     value: root.innerHTML
           //   });
           // }
-          if (observer) {
-            observer.observe(root, {
-              subtree: true,
-              childList: true,
-              attributes: true,
-              characterData: true
-            });
-          }
+          observer?.observe(root, {
+            subtree: true,
+            childList: true,
+            attributes: true,
+            characterData: true,
+          });
         };
         observer = new MutationObserver(() => {
           if (observer) {
@@ -74,19 +72,14 @@ export const activate: ActivationFunction = context => {
     disposeOutputItem(outputId) {
       if (typeof outputId === "string") {
         let observer = mutationObservers[outputId];
-        if (observer) {
-          observer.disconnect();
-        }
+        observer?.disconnect();
         delete mutationObservers[outputId];
       } else {
-        for (let id in mutationObservers) {
-          let observer = mutationObservers[id];
-          if (observer) {
-            observer.disconnect();
-          }
-        }
+        Object.values(mutationObservers).forEach((observer) =>
+          observer?.disconnect()
+        );
         mutationObservers = {};
       }
-    }
+    },
   };
 };
