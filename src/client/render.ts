@@ -3,9 +3,8 @@
 // You can configure or change this in the webpack.config.js file.
 import type { RendererContext } from 'vscode-notebook-renderer';
 
-if (module.hot) {
-  module.hot.addDisposeHandler(() => {
+module.hot?.addDisposeHandler(() => {
     // In development, this will be called before the renderer is reloaded. You
     // can use this to clean up or stash any state.
-  });
-}
+});
+

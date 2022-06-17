@@ -94,11 +94,8 @@ export class WLNotebookController {
       this.postMessageToKernel({type: "set-config", config: config.getKernelRelatedConfigs()});
     });
 
-    this.disposables.push(this.statusBarKernelItem);
-    this.disposables.push(this.statusBarExportItem);
-    this.disposables.push(this.outputPanel);
-    this.disposables.push(this.config);
-
+    this.disposables.push(this.statusBarKernelItem, this.statusBarExportItem, this.outputPanel, this.config);
+    
     this.controller.dispose = () => {
       this.quitKernel();
       this.outputPanel.print(`Notebook controller is disposed; there are ${this.disposables.length} disposables.`);
@@ -129,8 +126,7 @@ export class WLNotebookController {
     const rand = Math.random() * cmf[cmf.length - 1];
     for (let i = 0; i < cmf.length; ++i) {
       if (rand <= cmf[i]) {
-        const lower = ranges[i][0];
-        const upper = ranges[i][1];
+        const [lower, upper] = ranges[i];
         return Math.min(Math.floor(Math.random() * (upper - lower)) + lower, upper - 1);
       }
     }
