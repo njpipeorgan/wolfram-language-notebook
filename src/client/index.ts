@@ -73,7 +73,7 @@ export const activate: ActivationFunction = context => {
       if (typeof outputId === "string") {
         let observer = mutationObservers[outputId];
         observer?.disconnect();
-        delete mutationObservers[outputId];
+        mutationObservers[outputId] = undefined;
       } else {
         Object.values(mutationObservers).forEach((observer) =>
           observer?.disconnect()

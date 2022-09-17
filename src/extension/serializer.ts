@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import * as vscode from "vscode";
-const util = require("util");
+import util = require("util");
 
 interface WLNotebookData {
   cells: {
@@ -46,17 +46,17 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
       for (let cell of notebook.cells) {
         if (cell.executionSummary) {
           // execution summary is session-specific
-          delete cell.executionSummary;
+          cell.executionSummary = undefined;
         }
         if (cell.outputs) {
           for (const output of cell.outputs) {
             for (const item of output.items) {
-              item.data = encoder.encode(item.data);
+              item.data = encoder.encode(item.data as string);
             }
           }
         }
-      }
-    } catch (e) {
+      };
+    } catch (_) {
       notebook = { cells: [] };
     }
     return notebook as vscode.NotebookData;
@@ -74,12 +74,12 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
         if (cell.outputs) {
           for (const output of cell.outputs) {
             for (const item of output.items) {
-              item.data = decoder.decode(item.data);
+              item.data = decoder.decode(item.data as Uint8Array);
             }
           }
         }
       }
-    } catch (e) {
+    } catch (_) {
       notebook = { cells: [] };
     }
     return encoder.encode(JSON.stringify(notebook, null, 1));

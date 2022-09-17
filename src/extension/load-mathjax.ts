@@ -25,7 +25,7 @@ require("mathjax").init({
 export const tex2mml = (tex: string, options?: { [key: string]: any }) => {
   try {
     return mathjax.tex2mml(tex, options);
-  } catch (e) {
+  } catch (_) {
     return "Failed to parse TeX";
   }
 };
@@ -37,7 +37,7 @@ export const tex2svg = (tex: string, options?: { [key: string]: any }) => {
     }
     try {
       return mathjax.startup.adaptor.outerHTML(mathjax.tex2svg(tex, options));
-    } catch (e) {
+    } catch (_) {
       throw Error("Failed to parse TeX string");
     }
   } catch (e) {

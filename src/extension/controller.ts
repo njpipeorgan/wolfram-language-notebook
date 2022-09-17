@@ -13,9 +13,9 @@
 // limitations under the License.
 
 import * as vscode from "vscode";
-const util = require("util");
-const path = require("path");
-const zmq = require("zeromq");
+import util = require("util");
+import path = require("path");
+import zmq = require("zeromq");
 import * as child_process from "child_process";
 import { readFileSync, writeFile } from "fs";
 import { deserializeMarkup } from "./markdown-serializer";
@@ -170,7 +170,7 @@ export class WLNotebookController {
     while (true) {
       let [message] = await this.socket.receive().catch(() => {
         if (this.kernelConnected()) {
-          this.outputPanel.print(`Failed to receive messages from the kernel, but the kernel is connected.`);
+          this.outputPanel.print("Failed to receive messages from the kernel, but the kernel is connected.");
         }
         return [new Error("receive-message")];
       });
@@ -180,7 +180,7 @@ export class WLNotebookController {
       message = Buffer.from(message).toString("utf-8");
       try {
         message = JSON.parse(message);
-      } catch (error) {
+      } catch (_) {
         this.outputPanel.print("Failed to parse the following message:");
         this.outputPanel.print(message);
         continue;
@@ -189,7 +189,7 @@ export class WLNotebookController {
       const id = message?.uuid || "";
       const execution = this.executionQueue.find(id);
       switch (message.type) {
-        case "show-input-name":
+        case "show-input-name": {
           if (execution) {
             const match = message.name.match(/In\[(\d+)\]/);
             if (match) {
@@ -197,9 +197,10 @@ export class WLNotebookController {
             }
           }
           break;
+        }
         case "show-output":
         case "show-message":
-        case "show-text":
+        case "show-text": {
           if (execution) {
             const cellLabel = String(message.name || "");
             const renderMathJax = typeof message.text === "string" &&
@@ -218,7 +219,7 @@ export class WLNotebookController {
               outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
             }
             const output = new vscode.NotebookCellOutput(outputItems);
-            output.metadata = { cellLabel, isBoxData: message.isBoxData || false };
+            output.metadata = { cellLabel, isBoxData: message.isBoxData ?? false };
             if (execution?.hasOutput) {
               execution.execution.appendOutput(output);
             } else {
@@ -227,15 +228,17 @@ export class WLNotebookController {
             }
           }
           break;
-        case "evaluation-done":
+        }
+        case "evaluation-done": {
           if (execution && !execution.hasOutput) {
             execution.execution.replaceOutput([]);
           }
           this.executionQueue.end(id, true);
           this.checkoutExecutionQueue();
           break;
+        }
         case "request-input":
-        case "request-input-string":
+        case "request-input-string": {
           let prompt = message.prompt as string;
           let choices: any = null;
           if (prompt === "? ") {
@@ -273,7 +276,8 @@ export class WLNotebookController {
             });
           }
           break;
-        case "reply-export-notebook":
+        }
+        case "reply-export-notebook": {
           this.statusBarExportItem.hide();
           if ((message.text || "") === "") {
             // when there is nothing to export, maybe due to pdf export failure
@@ -284,7 +288,7 @@ export class WLNotebookController {
           const defaultDescription = message.format === "pdf" ? "PDF" : "Wolfram Notebook";
           const exportData = message.format === "pdf" ? Buffer.from(message.text, "base64") : message.text as string;
           const path = await vscode.window.showSaveDialog({
-            defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, "." + defaultFormat)),
+            defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, `.${defaultFormat}`)),
             filters: {
               [defaultDescription]: [defaultFormat],
               "All Files": ["*"]
@@ -294,6 +298,7 @@ export class WLNotebookController {
             this.writeFileChecked(path.fsPath, exportData);
           }
           break;
+        }
         case "update-symbol-usages":
           break;
         case "update-symbol-usages-progress":
@@ -327,7 +332,7 @@ export class WLNotebookController {
   private showKernelLaunchFailed(kernelName: string = "") {
     this.outputPanel.show();
     vscode.window.showErrorMessage(
-      `Failed to connect to the kernel${kernelName ? " \"" + kernelName + "\"" : ""}.`,
+      `Failed to connect to the kernel${kernelName ? ` \"${kernelName}\"` : ""}.`,
       "Try Again", "Test in Terminal", "Edit configurations"
     ).then(value => {
       if (value === "Try Again") {
@@ -369,7 +374,7 @@ export class WLNotebookController {
     try {
       kernelInitString = readFileSync(kernelInitPath).toString();
       kernelRenderInitString = readFileSync(kernelRenderInitPath).toString();
-    } catch (error) {
+    } catch (_) {
       vscode.window.showErrorMessage("Failed to read kernel initialization files.");
       this.quitKernel();
       return;
@@ -409,7 +414,7 @@ export class WLNotebookController {
       const terminal = vscode.window.createTerminal("Wolfram Language");
       this.disposables.push(terminal);
       terminal.show();
-      terminal.sendText(launchCommand + " " + launchArguments.join(" "));
+      terminal.sendText(`${launchCommand} ${launchArguments.join(" ")}`);
     } else {
       this.connectingtoKernel = true;
       this.statusBarKernelItem.setConnecting();
@@ -421,10 +426,10 @@ export class WLNotebookController {
         const message = data.toString();
         if (message.startsWith("<ERROR> ")) {
           // a fatal error
-          vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
+          vscode.window.showErrorMessage(`The kernel has stopped due to the following error: ${message.slice(8)}`);
           return;
         }
-        if (true || this.connectingtoKernel) {
+        if (true) {
           this.outputPanel.print("Received the following data from kernel:");
           this.outputPanel.print(`${data.toString()}`);
         }
@@ -444,7 +449,7 @@ export class WLNotebookController {
         const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
         if (match) {
           this.socket = new zmq.Pair({ linger: 0 });
-          this.socket.connect("tcp://" + match[1]);
+          this.socket.connect(`tcp://${match[1]}`);
           const rand = Math.floor(Math.random() * 1e9).toString();
           try {
             this.postMessageToKernel({ type: "test", text: rand });
@@ -476,7 +481,7 @@ export class WLNotebookController {
                 this.outputPanel.print("The kernel took too long to respond through the ZeroMQ link.");
               } else if (error.message === "test") {
                 this.outputPanel.print("The kernel responded with a wrong test message, as above");
-                this.outputPanel.print("  The expected message should contain: " + JSON.stringify({type: "test", text: rand}));
+                this.outputPanel.print(`  The expected message should contain: ${JSON.stringify({type: "test", text: rand})}`);
               }
             }
             this.quitKernel();
@@ -538,7 +543,7 @@ export class WLNotebookController {
         ...leadingPicks,
         { label: "$(new-file) Add a new kernel", detail: "" },
         { label: "$(notebook-edit) Edit kernel configurations in settings", detail: "" }
-      ]).then(value => {
+      ]).then((value:{label: string, detail: string}) => {
         if (value) {
           if (withUseWolframscript && value?.label === "$(debug-start) Use wolframscript") {
             const config = vscode.workspace.getConfiguration("wolframLanguageNotebook");
@@ -619,10 +624,10 @@ export class WLNotebookController {
           `(was: ${kernelLocationPrompt[previously?.type === "remote" ? 1 : 0]})` : ""
         }`
     });
-    if (!type) {
-      return;
-    } else {
+    if (type) {
       type = (type === kernelLocationPrompt[0]) ? "local" : "remote";
+    } else {
+      return;
     }
 
     let sshHost: any;
@@ -642,10 +647,10 @@ export class WLNotebookController {
         placeHolder: `Select SSH authentication method ${exists ? `(was ${previously?.sshCredentialType === "key" ? "a private key file" : "skipped"})` : ""
           }`
       });
-      if (!sshCredentialType) {
-        return;
-      } else {
+      if (sshCredentialType) {
         sshCredentialType = (sshCredentialType === "Private key file") ? "key" : "none";
+      } else {
+        return;
       }
       sshCredential = "";
       if (sshCredentialType === "key") {
@@ -690,7 +695,7 @@ export class WLNotebookController {
 
     const prevKernelConfigJSON = JSON.stringify(this.config.get("kernel.configurations"));
     const newKernelConfig = {...JSON.parse(prevKernelConfigJSON), ...newKernel};
-    const update = await this.config.update("kernel.configurations", newKernelConfig, vscode.ConfigurationTarget.Global);
+    await this.config.update("kernel.configurations", newKernelConfig, vscode.ConfigurationTarget.Global);
 
     vscode.window.showInformationMessage("A new kernel has been added.", "Start this kernel", "Dismiss").then(value => {
       if (value === "Start this kernel") {
@@ -728,14 +733,14 @@ export class WLNotebookController {
     _notebook: vscode.NotebookDocument,
     _controller: vscode.NotebookController
   ): void {
-    for (let cell of cells) {
+    cells.forEach(cell => {
       const execution = this.controller.createNotebookCellExecution(cell);
       const id = this.executionQueue.push(execution);
       const self = this;
       execution.token.onCancellationRequested(() => {
         self.abortEvaluation(id);
       });
-    }
+    })
     this.checkoutExecutionQueue();
   }
 
@@ -842,7 +847,7 @@ export class WLNotebookController {
             type: "Output",
             label: (output?.metadata?.cellLabel || "").toString(),
             text: decoder.decode(item?.data || new Uint8Array([])),
-            isBoxData: output?.metadata?.isBoxData || false
+            isBoxData: output?.metadata?.isBoxData ?? false
           });
         });
       }
@@ -881,7 +886,7 @@ export class WLNotebookController {
       this.postMessageToKernel({
         type: "evaluate-front-end",
         async: asynchronous,
-        text: text
+        text
       });
     }
   }

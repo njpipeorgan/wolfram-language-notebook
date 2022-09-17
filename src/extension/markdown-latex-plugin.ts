@@ -2,7 +2,7 @@
 // It is adapted from markdown-it-katex:
 // https://github.com/waylonflinn/markdown-it-katex
 
-const util = require("util");
+import util = require("util");
 
 function isValidDelim(state: any, pos: number) {
     let canOpen = true, canClose = true;
@@ -138,12 +138,12 @@ function math_block(state: any, start: number, end: number, silent: boolean){
 
 module.exports = function math_plugin(md: any, _options: any) {
 
-    const inlineRenderer = function(tokens: any[], idx: number){
-        return "<tex>" + Buffer.from(tokens[idx].content).toString('base64') + "</tex>";
+    const inlineRenderer = (tokens: any[], idx: number)=> {
+        return `<tex>${Buffer.from(tokens[idx].content).toString('base64')}</tex>`;
     };
 
-    const blockRenderer = function(tokens: any[], idx: number){
-        return "<p><tex>" + Buffer.from(tokens[idx].content).toString('base64') + "</tex></p>\n";
+    const blockRenderer = (tokens: any[], idx: number)=> {
+        return `<p><tex>${Buffer.from(tokens[idx].content).toString('base64')}</tex></p>\n`;
     };
 
     md.inline.ruler.after('escape', 'math_inline', math_inline);

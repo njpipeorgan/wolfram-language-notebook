@@ -94,7 +94,7 @@ export const wlHoverProvider: vscode.HoverProvider = {
       return null;
     }
     const entry = wlSymbolData.find(entry => entry.name === word);
-    if (!entry || !entry?.usage) {
+    if (!(entry && entry?.usage)) {
       return null;
     }
     let hoverStrings = entry.usage.split("\\n\\n---\\n");

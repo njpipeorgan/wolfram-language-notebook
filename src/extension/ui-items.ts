@@ -101,7 +101,7 @@ export class NotebookOutputPanel {
   }
   
   print(str: string) {
-    this.outputChannel.appendLine("[" + new Date().toUTCString() + "] " + str);
+    this.outputChannel.appendLine(`[${new Date().toUTCString()}] ${str}`);
   }
 
   show() {

@@ -12,10 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const markdownLatexPlugin = require("./markdown-latex-plugin");
-const MarkdownIt = require("markdown-it");
-const domutils = require("domutils");
-const htmlparser2 = require("htmlparser2");
+import markdownLatexPlugin = require("./markdown-latex-plugin");
+import MarkdownIt = require("markdown-it");
+// import domutils = require("domutils");
+import getOuterHTML from "dom-serializer";
+import htmlparser2 = require("htmlparser2");
 import { tex2mml } from "./load-mathjax";
 
 export function deserializeMarkup(markupText: string) {
@@ -26,7 +27,7 @@ export function deserializeMarkup(markupText: string) {
   }[] = [];
   const md = new MarkdownIt({
     html: true
-  }).use(markdownLatexPlugin);
+  }).use(markdownLatexPlugin as MarkdownIt.PluginSimple);
   const html = md.render(markupText);
   const doc = htmlparser2.parseDocument(html);
   
@@ -46,8 +47,10 @@ export function deserializeMarkup(markupText: string) {
     } else if (element.name === "br") {
       return "\n";
     } else if (element.name === "li") {
-      return domutils.getOuterHTML(element);
-    } else if (!textOnly) {
+      return getOuterHTML(element);
+    } else if (textOnly) {
+      return handleChildren(pre, true);
+    } else {
       switch (element.name) {
         case "a":
           return {
@@ -82,13 +85,12 @@ export function deserializeMarkup(markupText: string) {
             children: element?.attribs?.title || "[Image]",
             link: element?.attribs?.src || ""
           };
-        case "tex":
+        case "tex": {
           const tex = Buffer.from(handleChildren(pre, true), "base64").toString();
           return { type: "LaTeX", children: tex2mml(tex) };
+        }
       }
       return handleChildren(pre, textOnly);
-    } else {
-      return handleChildren(pre, true);
     }
   };
 

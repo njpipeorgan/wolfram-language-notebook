@@ -153,11 +153,11 @@ const handleBracket = (elem: HTMLElement, style: Style, span: number[]) => {
           elem.innerHTML = `<w><div style="${transform}transform-origin:50% 100%">${scheme[0]}</div><div style="${transform}transform-origin:50% 0%">${scheme[1]}</div></w>`;
         } else if (scheme?.length === 3) {
           const spacing = 0.5 * bracketHeightCat - 1;
-          const spacingElement = `<w style="height:${spacing}em;">${("<w>" + scheme[2] + "</w>").repeat(Math.ceil(spacing))}</w>`;
+          const spacingElement = `<w style="height:${spacing}em;">${(`<w>${scheme[2]}</w>`).repeat(Math.ceil(spacing))}</w>`;
           elem.innerHTML = `<w><w>${scheme[0]}</w>${spacingElement}<w>${scheme[1]}</w></w>`;
         } else if (scheme?.length === 4) {
           const spacing = 0.5 * (0.5 * bracketHeightCat - 2);
-          const spacingElement = `<w style="height:${spacing}em;">${("<w>" + scheme[3] + "</w>").repeat(Math.ceil(spacing))}</w>`;
+          const spacingElement = `<w style="height:${spacing}em;">${(`<w>${scheme[3]}</w>`).repeat(Math.ceil(spacing))}</w>`;
           elem.innerHTML = `<w><w>${scheme[0]}</w>${spacingElement}<w>${scheme[1]}</w>${spacingElement}<w>${scheme[2]}</w></w>`;
         }
 
@@ -169,9 +169,9 @@ const handleBracket = (elem: HTMLElement, style: Style, span: number[]) => {
 };
 
 const handleStringBox = (elem: HTMLElement | null, style: Style) => {
-  const lineHeight = style.lineHeight + (!(elem) ? 0.0 :
-    elem.classList.contains("large-symbol") ? 0.5 : 
-    elem.classList.contains("small-symbol") ? -0.5 : 0.0
+  const lineHeight = style.lineHeight + ((elem) ? elem.classList.contains("large-symbol") ? 0.5 : 
+    elem.classList.contains("small-symbol") ? -0.5 : 0.0 :
+    0.0
   );
   const padding = 0.5 * (lineHeight - 1.0) * style.fontSize;
   return [
