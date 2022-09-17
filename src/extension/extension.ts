@@ -20,6 +20,9 @@ import {
   wlCompletionProvider,
   wlHoverProvider,
 } from "./language";
+import {
+  wlDocumentFormattingEditProvider
+} from "./format-code";
 import { readFileSync } from "fs";
 import * as path from "path";
 export function activate(context: vscode.ExtensionContext) {
@@ -83,7 +86,8 @@ export function activate(context: vscode.ExtensionContext) {
         "wolfram",
         wlCompletionProvider
       ),
-      vscode.languages.registerHoverProvider("wolfram", wlHoverProvider)
+      vscode.languages.registerHoverProvider("wolfram", wlHoverProvider),
+      vscode.languages.registerDocumentFormattingEditProvider("wolfram", wlDocumentFormattingEditProvider)
     );
   }
 }
