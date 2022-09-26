@@ -14,6 +14,7 @@ logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
 logWrite["<INITIALIZATION STARTS>"];
 $hasZeroMQ=(Quiet@Needs["ZeroMQLink`"]=!=$Failed);
 $hasCodeParser=(Quiet@Needs["CodeParser`"]=!=$Failed);
+$hasCodeFmt = (Quiet@Needs["CodeFormatter`"]=!=$Failed);
 
 
 If[$VersionNumber<12.0,
@@ -28,6 +29,9 @@ If[TrueQ@MatchQ[ToBoxes[NumberForm[1.*^-20]],TagBox[InterpretationBox[StyleBox[R
 ];
 If[!$hasZeroMQ,
   logError["Failed to load ZeroMQLink` package."];Exit[];
+];
+If[!$hasCodeFmt,
+  logError["Failed to load CodeFormatter` package."];Exit[];
 ];
 
 
@@ -152,13 +156,14 @@ stackClear[q_]:=Module[{},q=<||>];
 
 ClearAll[sendMessage,readMessage];
 sendMessage[message_ByteArray]:=ZeroMQLink`ZMQSocketWriteMessage[$zmqserver,message];
-sendMessage[message_Association]:=sendMessage[StringToByteArray@Developer`WriteRawJSONString[message,"Compact"->True]];
+sendMessage::usage = "send <| |> to zmqPort"
+sendMessage[message_Association]:=sendMessage[StringToByteArray@Developer`WriteRawJSONString[message,"Compact"->True] (* HERE *)];
 sendMessage[message_]:=sendMessage[StringToByteArray[ToString[message],"UTF-8"]];
 readMessage[timeout_:1.0]:=Module[{ready=SocketReadyQ[$zmqserver,timeout]},If[ready,ByteArrayToString[SocketReadMessage[$zmqserver],"UTF-8"],$Failed]];
 (*sendMessage[message_]:=Echo[message];
 readMessage[timeout_:1.0]:=Module[{temp},Pause[timeout];If[Head[$messagedebug]===String,temp=$messagedebug;$messagedebug=Null;temp,$Failed]];*)
 
-
+handleOutput::usage = "get message from queue, deal with it and sendMessage to frontend"
 handleOutput[]:=Module[{},
   Module[{output=queuePop[$outputQueue],boxes,exceedsExprSize,isTraditionalForm=False,isTeXForm=False,shouldStoreText=True,text,html},
     $previousOutputMessage=$currentOutputMessage;
@@ -212,7 +217,8 @@ handleOutput[]:=Module[{},
       MessagePacket,
         $currentOutputMessage=TemplateApply["``::``", List@@output["packet"]];,
       TextPacket,
-        If[StringContainsQ[$previousOutputMessage,"::"]&&StringContainsQ[output["packet"][[1]],$previousOutputMessage],
+        Which[
+          StringContainsQ[$previousOutputMessage,"::"]&&StringContainsQ[output["packet"][[1]],$previousOutputMessage],
           sendMessage[<|
             "type"->"show-message",
             "uuid"->output["uuid"],
@@ -223,6 +229,12 @@ handleOutput[]:=Module[{},
             ],"</pre>"]
           |>];
           ,
+          output["action"] == "format",
+          sendMessage[
+            <|"type" -> "format",
+             "uuid" -> output["uuid"], 
+             "text" -> output["text"]|>],
+            True,
           sendMessage[<|
             "type"->"show-text",
             "uuid"->output["uuid"],
@@ -243,6 +255,7 @@ $dangeroussymbols=ToExpression[#,InputForm,HoldComplete]&/@ToExpression@StringCa
 ][[1]];
 isdangerous[expr_]:=Intersection[Cases[expr,s_Symbol:>HoldComplete[s],{0,Infinity},Heads->True],$dangeroussymbols]=!={};
 
+handleMessage::usage = "Get the message from front end, eval, push to $OutputQueue"
 handleMessage[]:=Module[{},
   $message=Quiet@Developer`ReadRawJSONString[$messagetext];
   logWriteDebug["message received: "<>ToString[$messagetext]<>"\n"];
@@ -254,6 +267,15 @@ handleMessage[]:=Module[{},
     Switch[$message["type"],
       "test",
         sendMessage[<|"type"->"test","text"->$message["text"],"version"->$Version|>];,
+      "format",
+        logWrite["\nL271: \n formatted code \n"];
+        logWrite[$message["text"] // CodeFormat];
+        queuePush[$outputQueue,<|
+            "uuid"->$message["uuid"],
+            "type"-> TextPacket,
+            "action" -> "format",
+            "packet" -> TextPacket[($message["text"] // CodeFormat)]
+            |>];,
       "evaluate-cell",
         If[SyntaxQ[$message["text"]],
           packets=List@@Thread[EnterExpressionPacket[#],EnterExpressionPacket]&@

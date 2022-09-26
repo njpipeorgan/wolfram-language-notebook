@@ -43,11 +43,12 @@ export class WLNotebookController {
   private disposables: any[] = [];
 
   private kernel: any;
-  private socket: any;
+  private socket: zmq.Pair | undefined;
   private restartAfterExitKernel = false;
   private connectingtoKernel = false;
 
   private executionQueue = new ExecutionQueue();
+  private formatReceiveQueue: string[] = [];
 
   constructor() {
     this.thisExtension = vscode.extensions.getExtension("njpipeorgan.wolfram-language-notebook");
@@ -108,7 +109,12 @@ export class WLNotebookController {
   getController() {
     return this.controller;
   }
-
+  async formatCode(s: string) {
+    this.formatFrontEnd(s);
+    await new Promise((r) => setTimeout(r, 2000));
+    const res = this.formatReceiveQueue.pop() ?? "error";
+    return res;
+  }
   private getRandomPort(portRanges: string) {
     let ranges = [...portRanges.matchAll(/\s*(\d+)\s*(?:[-‐‑‒–]\s*(\d+)\s*)?/g)]
       .map(match => [parseInt(match[1]), parseInt(match[match[2] === undefined ? 1 : 2])])
@@ -168,7 +174,8 @@ export class WLNotebookController {
 
   private async handleMessageFromKernel() {
     while (true) {
-      let [message] = await this.socket.receive().catch(() => {
+      //@ts-ignore
+      let [message] = await this.socket?.receive().catch(() => {
         if (this.kernelConnected()) {
           this.outputPanel.print("Failed to receive messages from the kernel, but the kernel is connected.");
         }
@@ -197,6 +204,9 @@ export class WLNotebookController {
             }
           }
           break;
+        }
+        case "format": {
+            this.formatReceiveQueue.push(message.text);
         }
         case "show-output":
         case "show-message":
@@ -454,6 +464,7 @@ export class WLNotebookController {
           try {
             this.postMessageToKernel({ type: "test", text: rand });
             let timer: any;
+            //@ts-ignore
             const [received] = await Promise.race([
               this.socket.receive(),
               new Promise(res => timer = setTimeout(() => res([new Error("timeout")]), connectionTimeout))
@@ -885,6 +896,15 @@ export class WLNotebookController {
     if (this.kernelConnected()) {
       this.postMessageToKernel({
         type: "evaluate-front-end",
+        async: asynchronous,
+        text
+      });
+    }
+  }
+  formatFrontEnd(text: string, asynchronous: boolean = false) {
+    if (this.kernelConnected()) {
+      this.postMessageToKernel({
+        type: "format",
         async: asynchronous,
         text
       });

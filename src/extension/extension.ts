@@ -14,7 +14,6 @@
 
 import * as vscode from "vscode";
 import { WLNotebookSerializer } from "./serializer";
-import { WLNotebookController } from "./controller";
 import {
   setWLSymbolData,
   wlCompletionProvider,
@@ -25,6 +24,7 @@ import {
 } from "./format-code";
 import { readFileSync } from "fs";
 import * as path from "path";
+import {notebookController} from "./middle"
 export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.workspace.registerNotebookSerializer(
@@ -32,7 +32,7 @@ export function activate(context: vscode.ExtensionContext) {
       new WLNotebookSerializer()
     )
   );
-  const notebookController = new WLNotebookController();
+
   context.subscriptions.push(
     notebookController.getController(),
     vscode.commands.registerCommand(
@@ -87,7 +87,8 @@ export function activate(context: vscode.ExtensionContext) {
         wlCompletionProvider
       ),
       vscode.languages.registerHoverProvider("wolfram", wlHoverProvider),
-      vscode.languages.registerDocumentFormattingEditProvider("wolfram", wlDocumentFormattingEditProvider)
+      vscode.languages.registerDocumentFormattingEditProvider("wolfram", 
+      wlDocumentFormattingEditProvider)
     );
   }
 }
