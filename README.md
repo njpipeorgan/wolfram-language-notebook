@@ -27,17 +27,26 @@ Add a code cell, type Wolfram language code  in the cell, and evaluate it.
 
 **Export as Wolfram notebook**: The notebooks can be exported as Wolfram notebooks, containing markdown cells, code cells and their outputs.
 
-**Remote kernel**: When configured, the notebook can establish an ssh connection to the remote machine, and the computations are done remotely. Code and outputs can be stored either on the remote machine or locally.
+**Remote development**: When configured, the notebook can establish a tunnel or an SSH connection to the remote machine, and the computations are done remotely. Code and outputs can be stored either on the remote machine or locally.
 
 ## Kernel Configuration
 
 To add a new kernel, click **⨉ Wolfram Kernel** in the status bar and choose **Add a new kernel** (when no kernel is currently connected). By default, the command launching the kernels is `wolframscript` and the port is randomly selected between 49152 and 65535. To edit or remove kernel configurations, find `kernel.configurations` in the extension settings page, and edit settings.json.
 
-## Remote Kernel
+## Remote Development
 
-### Using VS Code Remote Development
+### Use VS Code Remote Tunnel
 
-With this approach, you use VS Code to connect to remote machines, containers, or [WSL](https://docs.microsoft.com/windows/wsl/), and to work with the files and the kernel on the remote system. To do this, you need to:
+With this approach, you connect to a remote machine through a secure tunnel following [this guide](https://code.visualstudio.com/docs/remote/tunnels). When configured, you can work with the files and the kernel on the remote system from a web browser. In short, you need to:
+
+  1. Install `code` [CLI](https://code.visualstudio.com/download) on the remote machine.
+  2. Create a tunnel with the command `code tunnel`, where a URL will be printed as `https://vscode.dev/tunnel/.../...`.
+  3. Open the URL in a web browser.
+  4. Click **⨉ Wolfram Kernel** to add or launch a kernel on the remote system.
+
+### Use VS Code Remote Development
+
+With this approach, you use VS Code to connect to remote machines, containers, or [WSL](https://docs.microsoft.com/windows/wsl/). You work with the files and the kernel on the remote system. To do this, you need to:
 
   1. Install [Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack);
   2. [Follow the guide](https://code.visualstudio.com/docs/remote/remote-overview#_getting-started) to connect to a remote system; and
