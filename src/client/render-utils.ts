@@ -26,9 +26,7 @@ type Style = {
 
 let boxMutations : (() => any)[] = [];
 const clearBoxMutations = () => {
-  for (const mutation of boxMutations) {
-    mutation();
-  }
+  boxMutations.forEach(mutation => mutation());
   boxMutations.length = 0;
 };
 
@@ -144,26 +142,25 @@ const handleBracket = (elem: HTMLElement, style: Style, span: number[]) => {
   const containerHeight = (1.0 + 0.5 * bracketHeightCat) * em;
 
   if (previousHeightCat !== bracketHeightCat) {
-    const schemeSet = (bracketRenderScheme[ch] || []);
+    const schemeSet = (bracketRenderScheme[ch] ?? []);
     const scheme = bracketHeightCat < schemeSet.length ?
       schemeSet[bracketHeightCat] : schemeSet[schemeSet.length - 1];
     boxMutations.push(() => {
-      if (scheme !== undefined) {
-        if (scheme.length === 1) {
+        if (scheme?.length === 1) {
           elem.innerHTML = `<w><div>${scheme[0]}</div></w>`;
-        } else if (scheme.length === 2) {
+        } else if (scheme?.length === 2) {
           const transform = `transform:scaleY(${0.25 * bracketHeightCat + 0.5});`;
           elem.innerHTML = `<w><div style="${transform}transform-origin:50% 100%">${scheme[0]}</div><div style="${transform}transform-origin:50% 0%">${scheme[1]}</div></w>`;
-        } else if (scheme.length === 3) {
+        } else if (scheme?.length === 3) {
           const spacing = 0.5 * bracketHeightCat - 1;
           const spacingElement = `<w style="height:${spacing}em;">${("<w>" + scheme[2] + "</w>").repeat(Math.ceil(spacing))}</w>`;
           elem.innerHTML = `<w><w>${scheme[0]}</w>${spacingElement}<w>${scheme[1]}</w></w>`;
-        } else if (scheme.length === 4) {
+        } else if (scheme?.length === 4) {
           const spacing = 0.5 * (0.5 * bracketHeightCat - 2);
           const spacingElement = `<w style="height:${spacing}em;">${("<w>" + scheme[3] + "</w>").repeat(Math.ceil(spacing))}</w>`;
           elem.innerHTML = `<w><w>${scheme[0]}</w>${spacingElement}<w>${scheme[1]}</w>${spacingElement}<w>${scheme[2]}</w></w>`;
         }
-      }
+
       elem.style.height = `${(containerHeight).toFixed(2)}px`;
       elem.setAttribute("height", String(bracketHeightCat));
     });

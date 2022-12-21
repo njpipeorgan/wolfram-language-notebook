@@ -9,11 +9,11 @@ Install this extension from [VS Code Marketplace](https://marketplace.visualstud
 
 ## Getting Started
 
-To create a new Wolfram Language notebook, execute **Create New Wolfram Language Notebook** in the Command Palette, or create a new file with `.wlnb` extension. 
+To create a new Wolfram Language notebook, execute **Create New Wolfram Language Notebook** in the Command Palette, or create a new file with `.wlnb` extension.
 
-Execute **Manage Kernels** command and choose **Use wolframscript** to add `wolframscript` to the kernel configuration and connect to it. The status of the kernel will be shown in the status bar. 
+Execute **Manage Kernels** command and choose **Use wolframscript** to add `wolframscript` to the kernel configuration and connect to it. The status of the kernel will be shown in the status bar.
 
-Add a code cell, type Wolfram language code  in the cell, and evaluate it. 
+Add a code cell, type Wolfram language code in the cell, and evaluate it.
 
 ![getting-started](images/getting-started.gif)
 
@@ -48,20 +48,20 @@ With this approach, you connect to a remote machine through a secure tunnel foll
 
 With this approach, you use VS Code to connect to remote machines, containers, or [WSL](https://docs.microsoft.com/windows/wsl/). You work with the files and the kernel on the remote system. To do this, you need to:
 
-  1. Install [Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack);
-  2. [Follow the guide](https://code.visualstudio.com/docs/remote/remote-overview#_getting-started) to connect to a remote system; and
-  3. Click **⨉ Wolfram Kernel** to add or launch a kernel on the remote system.
+1. Install [Remote Development Extension Pack](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.vscode-remote-extensionpack);
+2. [Follow the guide](https://code.visualstudio.com/docs/remote/remote-overview#_getting-started) to connect to a remote system; and
+3. Click **⨉ Wolfram Kernel** to add or launch a kernel on the remote system.
 
 ### Launch Remote Kernel via SSH
 
-With this approach, you launch and connect to a remote kernel via SSH: code and files are stored locally, and the communication with the remote kernel is managed by the extension. 
+With this approach, you launch and connect to a remote kernel via SSH: code and files are stored locally, and the communication with the remote kernel is managed by the extension.
 
 To add a remote kernel, choose **On a remote machine**, and provide the private key file for ssh authentication (skip the private key if it is already available to `ssh`).
 
-To edit or remove kernel configurations, find `kernel.configurations` in the extension settings page, and edit settings.json. Each kernel is an entry with the kernel name as the key and the following configurations as the value: 
+To edit or remove kernel configurations, find `kernel.configurations` in the extension settings page, and edit settings.json. Each kernel is an entry with the kernel name as the key and the following configurations as the value:
 
 | Key               | Value                                              |
-|-------------------|----------------------------------------------------|
+| ----------------- | -------------------------------------------------- |
 | type              | "local"/"remote"                                   |
 | command           | command to launch the kernel, e.g. "wolframscript" |
 | ports             | ranges of numbers, e.g. "1,3,6-9"                  |
@@ -78,16 +78,32 @@ Check [Release Notes](https://github.com/njpipeorgan/wolfram-language-notebook/w
 
 **The notebook failed to connect to a kernel.**
 
-  - Check that `wolframscript` is installed, and it can be used in the terminal.
-  - Wolfram Mathematica/Engine limits the number of kernels running simultaneously. Try [closing all Wolfram processes](https://support.wolfram.com/36360) before connecting to a kernel fron the notebook.
-  - If the problem persists, [Open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the content in the Output panel (Ctrl+Shift+U / ⇧⌘U) "Wolfram Language Notebook" tab.
+- Check that `wolframscript` is installed, and it can be used in the terminal.
+- Wolfram Mathematica/Engine limits the number of kernels running simultaneously. Try [closing all Wolfram processes](https://support.wolfram.com/36360) before connecting to a kernel from the notebook.
+- If the problem persists, [Open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the content in the Output panel (Ctrl+Shift+U / ⇧⌘U) "Wolfram Language Notebook" tab.
 
 **The output of an evaluation was not what I expected.**
 
-  - Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only supports a limited number of styling options for now. 
-  - The brightness of the images are invert by default in dark and high contrast themes. Uncheck `rendering.invertBrightnessInDarkThemes` in the extension settings to disable this feature (outputs are updated after re-evaluations). 
+- Please [open an issue](https://github.com/njpipeorgan/wolfram-language-notebook/issues) with the actual and expected output. Note that the extension only supports a limited number of styling options for now.
+- The brightness of the images is inverted by default in dark and high-contrast themes. Uncheck `rendering.invertBrightnessInDarkThemes` in the extension settings to disable this feature (outputs are updated after re-evaluations).
 
 **How can I use the notebook with [Wolfram Language Server](https://github.com/kenkangxgwe/lsp-wl)?**
 
-  - With Wolfram Language Server installed, the features, like hover and completion, are enabled in Wolfram Language cells.
-  - Meanwhile, you can uncheck `editor.languageFeatures` in the extension settings to disable the built-in language features provided by Wolfram Language Notebook.
+- With Wolfram Language Server installed, the features, like hover and completion, are enabled in Wolfram Language cells.
+- Meanwhile, you can uncheck `editor.languageFeatures` in the extension settings to disable the built-in language features provided by Wolfram Language Notebook.
+
+---
+
+## Development
+
+```bash
+npm i
+```
+
+to install dependencies.
+
+After changing files.
+
+```bash
+npm test
+```

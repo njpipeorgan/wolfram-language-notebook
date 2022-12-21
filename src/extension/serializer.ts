@@ -1,11 +1,11 @@
 // Copyright 2021 Tianhuan Lu
-// 
+//
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
-// 
+//
 //     http://www.apache.org/licenses/LICENSE-2.0
-// 
+//
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -49,8 +49,8 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
           delete cell.executionSummary;
         }
         if (cell.outputs) {
-          for (let output of cell.outputs) {
-            for (let item of output.items) {
+          for (const output of cell.outputs) {
+            for (const item of output.items) {
               item.data = encoder.encode(item.data);
             }
           }
@@ -70,10 +70,10 @@ export class WLNotebookSerializer implements vscode.NotebookSerializer {
     const encoder = new util.TextEncoder();
     let notebook = data as WLNotebookData;
     try {
-      for (let cell of notebook.cells) {
+      for (const cell of notebook.cells) {
         if (cell.outputs) {
-          for (let output of cell.outputs) {
-            for (let item of output.items) {
+          for (const output of cell.outputs) {
+            for (const item of output.items) {
               item.data = decoder.decode(item.data);
             }
           }
