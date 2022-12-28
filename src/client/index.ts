@@ -38,13 +38,23 @@ export const activate: ActivationFunction = context => {
   return {
     renderOutputItem(outputItem, element) {
       // console.log(outputItem, element);
-      element.innerHTML = "<div id=\"root\"></div>";
+      element.innerHTML = "<div id=\"root\"><div id=\"expr-root\"></div><div id=\"context-menu\" tabindex=\"-1\"></div></div>";
       const root = element.querySelector<HTMLElement>('#root')!;
-      errorOverlay.wrap(root, () => {
-        root.innerHTML = outputItem.text();
+      const exprRoot = element.querySelector<HTMLElement>('#expr-root')!;
+      const contextMenu = element.querySelector<HTMLElement>('#context-menu')!;
+      // if (context.postMessage) {
+      //   element.querySelector<HTMLElement>('#root')!.addEventListener('contextmenu', () => {
+      //     context.postMessage!({
+      //       request: 'showEditor',
+      //       data: '<custom data>'
+      //     });
+      //   });
+      // }
+      errorOverlay.wrap(exprRoot, () => {
+        exprRoot.innerHTML = outputItem.text();
         let observer = mutationObservers[outputItem.id];
         const reconnect = () => {
-          renderUtils.handleBoxes(root);
+          renderUtils.handleBoxes(exprRoot);
           // if (context.postMessage) {
           //   context.postMessage({
           //     type: "update-html",
@@ -52,7 +62,7 @@ export const activate: ActivationFunction = context => {
           //     value: root.innerHTML
           //   });
           // }
-          observer?.observe(root, {
+          observer?.observe(exprRoot, {
             subtree: true,
             childList: true,
             attributes: true,
@@ -66,8 +76,38 @@ export const activate: ActivationFunction = context => {
           }
         });
         reconnect();
-        renderUtils.addResizeWidget(root);
+        renderUtils.addResizeWidget(exprRoot);
       });
+      if (context.postMessage) {
+        contextMenu.innerHTML = `
+  <ul class="menu-options">
+    <li class="menu-option" id="save-as">Save as...</li>
+  </ul>`;
+        root.addEventListener('contextmenu', (e) => {
+          const target = e.target as HTMLElement;
+          if (target.tagName !== "IMG") {
+            return;
+          }
+          e.preventDefault();
+          var rect = root.getBoundingClientRect();
+          var x = e.clientX - rect.left;
+          var y = e.clientY - rect.top;
+          contextMenu.style.display = 'block';
+          contextMenu.style.left = `${x}px`;
+          contextMenu.style.top = `${y}px`;
+          contextMenu.focus();
+          contextMenu.querySelector<HTMLElement>("#save-as")!.onclick = (() => {
+            contextMenu.blur();
+            context.postMessage!({
+              request: 'save-as',
+              data: target.getAttribute("src") || ""
+            });
+          });
+        });
+        contextMenu.addEventListener('blur', () => {
+          contextMenu.style.display = 'none';
+        });
+      }
     },
     disposeOutputItem(outputId) {
       if (typeof outputId === "string") {

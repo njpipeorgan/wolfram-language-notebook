@@ -6,11 +6,11 @@
   "repository": {
     "url": "https://github.com/njpipeorgan/wolfram-language-notebook"
   },
-  "version": "0.1.0",
+  "version": "0.1.1",
   "preview": true,
   "icon": "icon.png",
   "engines": {
-    "vscode": "^1.62.0"
+    "vscode": "^1.74.0"
   },
   "capabilities": {
     "virtualWorkspaces": true,
@@ -218,8 +218,8 @@
     "@types/mocha": "^8.2.2",
     "@types/node": "14.x",
     "@types/uuid": "^8.3.1",
-    "@types/vscode": "^1.62.0",
-    "@types/vscode-notebook-renderer": "^1.57.8",
+    "@types/vscode": "^1.74.0",
+    "@types/vscode-notebook-renderer": "^1.72.0",
     "@types/webpack-env": "^1.16.0",
     "@typescript-eslint/eslint-plugin": "^4.26.0",
     "@typescript-eslint/parser": "^4.26.0",

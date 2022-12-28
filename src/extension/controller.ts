@@ -38,6 +38,7 @@ export class WLNotebookController {
   private statusBarKernelItem = new KernelStatusBarItem(this.supportedLanguages);
   private statusBarExportItem = new ExportNotebookStatusBarItem();
   private outputPanel = new NotebookOutputPanel("Wolfram Language Notebook");
+  private messageChannel: vscode.NotebookRendererMessaging | undefined;
   private config = new NotebookConfig();
   private extensionPath: string = "";
   private disposables: any[] = [];
@@ -88,6 +89,30 @@ export class WLNotebookController {
         this.quitKernel();
       }
     });
+
+    this.messageChannel = vscode.notebooks.createRendererMessaging("wolfram-language-notebook-renderer");
+    this.messageChannel.onDidReceiveMessage(async e => {
+      // console.log("Received message from renderer: " + JSON.stringify(e));
+      if (e.message.request === "save-as") {
+        const notebookPath = e.editor.notebook.uri.fsPath;
+        const notebookDir = path.dirname(notebookPath);
+        const pngPath = path.join(notebookDir, "*.png");
+        const uriData = e.message.data;
+        const base64Data = uriData.replace(/^data:image\/png;base64,/, "");
+        vscode.window.showSaveDialog({
+          defaultUri: vscode.Uri.file(pngPath),
+          filters: {
+            "PNG": ["png"],
+            "All Files": ["*"]
+          }
+        }).then(value => {
+          if (value) {
+            this.writeFileChecked(value.fsPath, new Uint8Array(Buffer.from(base64Data, "base64")));
+          }
+        });
+      }
+    });
+    this.disposables.push(this.messageChannel);
 
     // when notebook config changes, send a message to the kernel
     this.config.onDidChange((config: NotebookConfig) => {
