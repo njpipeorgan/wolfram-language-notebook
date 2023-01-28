@@ -378,6 +378,7 @@ export class WLNotebookController {
     const kernelCommand = String(kernel?.command || "");
     const sshCommand = String(kernel?.sshCommand || "ssh");
     const sshHost = String(kernel?.sshHost || "");
+    const sshPort = String(kernel?.sshPort || "22");
     const sshCredentialType = String(kernel?.sshCredentialType);
     const sshCredential = String(kernel?.sshCredential || "none");
     const kernelPort = this.getRandomPort(String(kernel?.ports));
@@ -416,6 +417,7 @@ export class WLNotebookController {
         ...(sshCredentialType === "key" ? ["-i", sshCredential] : []),
         "-o", "ExitOnForwardFailure=yes",
         "-L", `127.0.0.1:${kernelPort}:127.0.0.1:${kernelPort}`,
+        "-p", sshPort,
         sshHost,
         kernelCommand || "wolframscript",
         ...(testInTerminal ? [] : ["-code", kernelInitCommands])
@@ -524,7 +526,7 @@ export class WLNotebookController {
         }
       });
       this.kernel.on("error", (err: Error) => {
-        this.outputPanel.print(`Error occured in spwaning the kernel process: \n${err}`);
+        this.outputPanel.print(`Error occured in spawning the kernel process: \n${err}`);
         this.quitKernel();
         this.showKernelLaunchFailed(kernelName);
       });

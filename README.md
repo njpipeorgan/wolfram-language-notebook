@@ -67,6 +67,7 @@ To edit or remove kernel configurations, find `kernel.configurations` in the ext
 | ports             | ranges of numbers, e.g. "1,3,6-9"                  |
 | sshCommand        | the ssh command, e.g. "ssh"                        |
 | sshHost           | user@hostname                                      |
+| sshPort           | port of ssh server (default: 22)                   |
 | sshCredentialType | "key"/"none"                                       |
 | sshCredential     | path to the ssh credential                         |
 
