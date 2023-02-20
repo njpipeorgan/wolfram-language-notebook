@@ -92,19 +92,3 @@ Check [Release Notes](https://github.com/njpipeorgan/wolfram-language-notebook/w
 
 - With Wolfram Language Server installed, the features, like hover and completion, are enabled in Wolfram Language cells.
 - Meanwhile, you can uncheck `editor.languageFeatures` in the extension settings to disable the built-in language features provided by Wolfram Language Notebook.
-
----
-
-## Development
-
-```bash
-npm i
-```
-
-to install dependencies.
-
-After changing files.
-
-```bash
-npm test
-```
