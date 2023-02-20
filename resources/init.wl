@@ -141,12 +141,13 @@ Protect[Short];
 
 
 ClearAll[queuePush,queuePop,queueClear,stackPush,stackPop,stackClear];
-SetAttributes[{queuePush, queuePop,queueClear,stackPush,stackPop,stackClear}, HoldFirst];
+SetAttributes[{queuePush,queuePop,queueClear,stackPush,stackPop,stackTop,stackClear}, HoldFirst];
 queuePush[q_, value_]:=Module[{},AssociateTo[q, $ModuleNumber->value]];
 queuePop[q_]:=If[Length[q]>0,With[{first=Take[q,1]},KeyDropFrom[q, Keys@first];first[[1]]],Null];
 queueClear[q_]:=Module[{},q=<||>];
 stackPush[q_, value_]:=Module[{},AssociateTo[q, $ModuleNumber->value]];
 stackPop[q_]:=If[Length[q]>0,With[{last=Take[q,-1]},KeyDropFrom[q, Keys@last];last[[1]]],Null];
+stackTop[q_]:=If[Length[q]>0,With[{last=Take[q,-1]},last[[1]]],Null];
 stackClear[q_]:=Module[{},q=<||>];
 
 
@@ -180,8 +181,8 @@ handleOutput[]:=Module[{},
             FormBox[#[[1,1]],TraditionalForm],
             MakeBoxes@@#
           ]&[output["packet"]];
-          shouldStoreText=(isTeXForm=StringMatchQ[output["name"],RegularExpression["^Out\\[.+\\]//TeXForm=.*"]])
-            ||(!exceedsExprSize&&TrueQ@$getKernelConfig["storeOutputExpressions"]);
+          isTeXForm=StringMatchQ[output["name"],RegularExpression["^Out\\[.+\\]//TeXForm=.*"]];
+          shouldStoreText=isTeXForm||(!exceedsExprSize&&TrueQ@$getKernelConfig["storeOutputExpressions"]);
           text=If[shouldStoreText,Replace[output["packet"],ReturnExpressionPacket[expr_]:>ToString[Unevaluated[expr],InputForm]],""];
           If[isTeXForm,text=ExportString[text,"RawJSON"];];
           ,

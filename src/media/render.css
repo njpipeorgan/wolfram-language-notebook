@@ -47,7 +47,7 @@ pre > .wl-message {
 
 w, wb, 
 wrow, wsub, wsup, wsubsup, wover, wunder, wunderover, 
-wfrac, wsqrt, wgraph, wgrid, wframe, wpane, 
+wfrac, wsqrt, wgraph, wgraph3d, wgrid, wframe, wpane, 
 wunknown, wfailed {
   margin: 0;
   padding: 0;
@@ -81,7 +81,7 @@ wrow > wrow {
 w, wrow {
   text-decoration: inherit;
 }
-wgraph {
+wgraph, wgraph3d {
   vertical-align: middle;
   position: relative;
 }
@@ -224,7 +224,7 @@ wunderover > :last-child > :last-child {
   font-size: var(--script-font-size);
 }
 
-wgraph {
+wgraph, wgraph3d {
   vertical-align: middle;
   margin: calc(1px + 0.1em);
 }

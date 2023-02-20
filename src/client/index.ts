@@ -16,7 +16,8 @@ import errorOverlay from "vscode-notebook-error-overlay";
 import type { ActivationFunction } from "vscode-notebook-renderer";
 import "../media/reset.css";
 import "../media/render.css";
-import * as renderUtils from "./render-utils";
+import * as renderer from "./renderer";
+import { addResizeWidget, removeResizeWidget } from "./resize-widget";
 
 // Fix the public path so that any async import()'s work as expected.
 declare const __webpack_relative_entrypoint_to_root__: string;
@@ -33,7 +34,17 @@ __webpack_public_path__ = new URL(scriptUrl.replace(/[^/]+$/, '') + __webpack_re
 
 export const activate: ActivationFunction = context => {
   
+  // The mapping from the output item/DOM element UUID to the MutationObserver
   let mutationObservers: { [key: string]: MutationObserver | undefined } = {};
+
+  // The mapping from the output item/DOM element UUID to the list of disposables
+  let disposables: { [key: string]: (() => void)[] } = {};
+  const registerDisposable = (uuid: string, disposable: () => void) => {
+    if (!disposables[uuid]) {
+      disposables[uuid] = [];
+    }
+    disposables[uuid].push(disposable);
+  };
 
   return {
     renderOutputItem(outputItem, element) {
@@ -54,14 +65,7 @@ export const activate: ActivationFunction = context => {
         exprRoot.innerHTML = outputItem.text();
         let observer = mutationObservers[outputItem.id];
         const reconnect = () => {
-          renderUtils.handleBoxes(exprRoot);
-          // if (context.postMessage) {
-          //   context.postMessage({
-          //     type: "update-html",
-          //     id: outputItem.id,
-          //     value: root.innerHTML
-          //   });
-          // }
+          renderer.handleWExpr(exprRoot);
           observer?.observe(exprRoot, {
             subtree: true,
             childList: true,
@@ -76,7 +80,7 @@ export const activate: ActivationFunction = context => {
           }
         });
         reconnect();
-        renderUtils.addResizeWidget(exprRoot);
+        addResizeWidget(exprRoot);
       });
       if (context.postMessage) {
         contextMenu.innerHTML = `

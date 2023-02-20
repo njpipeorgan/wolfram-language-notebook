@@ -216,7 +216,8 @@
     "@types/lodash": "^4.14.178",
     "@types/markdown-it": "^12.2.3",
     "@types/mocha": "^8.2.2",
-    "@types/node": "14.x",
+    "@types/node": "^14.18.36",
+    "@types/three": "^0.146.0",
     "@types/uuid": "^8.3.1",
     "@types/vscode": "^1.74.0",
     "@types/vscode-notebook-renderer": "^1.72.0",
@@ -247,6 +248,8 @@
     "mathjax": "^3.2.0",
     "path": "^0.12.7",
     "string-argv": "^0.3.1",
+    "three": "^0.148.0",
+    "three.meshline": "^1.4.0",
     "util": "^0.12.4",
     "uuid": "^8.3.2",
     "zeromq": "^6.0.0-beta.6"

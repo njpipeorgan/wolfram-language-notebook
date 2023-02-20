@@ -91,6 +91,7 @@ export class WLNotebookController {
     });
 
     this.messageChannel = vscode.notebooks.createRendererMessaging("wolfram-language-notebook-renderer");
+    
     this.messageChannel.onDidReceiveMessage(async e => {
       // console.log("Received message from renderer: " + JSON.stringify(e));
       if (e.message.request === "save-as") {
@@ -110,6 +111,8 @@ export class WLNotebookController {
             this.writeFileChecked(value.fsPath, new Uint8Array(Buffer.from(base64Data, "base64")));
           }
         });
+      } else if (e.message.request === "update-graphics") {
+        
       }
     });
     this.disposables.push(this.messageChannel);
