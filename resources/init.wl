@@ -2,7 +2,23 @@
 
 (* ::Section:: *)
 (*Import*)
+$TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
+If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
 
+WolframPlayer[expr_, box_] := Block[{},
+    {
+        "wolframplayer",
+		    Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
+        "&"
+    } // StringRiffle // Run
+]
+(*$DisplayFunction = WolframPlayer[#, ToBoxes@#]&;*)
+$POST = With[{box = ToBoxes@#},
+	If[FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox]@box,
+			#,
+			WolframPlayer[#, box]
+	]
+]&;
 
 SetAttributes[logWrite,HoldAllComplete];
 logWrite[message_]:=WriteString[Streams["stdout"],message];
@@ -439,6 +455,7 @@ handleMainLink[]:=Module[{},
         OutputNamePacket,
           $outputName=packet[[1]];,
         ReturnExpressionPacket,
+          $evaluating["packet"] // First // $POST // Quiet; (* call wolfram player *)
           queuePush[$outputQueue,<|
             "uuid"->$evaluating["uuid"],
             "name"->$outputName,
