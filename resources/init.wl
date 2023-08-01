@@ -5,20 +5,18 @@
 $TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
 If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
 
-WolframPlayer[expr_, box_] := Block[{},
-    {
+WolframPlayer[box_] := {
         "wolframplayer",
-		    Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
-        "&"
-    } // StringRiffle // Run
-]
+		    Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"]
+} // StringRiffle // Run
+
 (*$DisplayFunction = WolframPlayer[#, ToBoxes@#]&;*)
-$POST = With[{box = ToBoxes@#},
-	If[FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|SliderBox|Slider2DBox]@box,
-			#,
-			WolframPlayer[#, box]
-	]
-]&;
+
+$POST[box_] := If[
+      !FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|ButtonBox|SliderBox|Slider2DBox]@box,
+			WolframPlayer[box]
+];
+
 
 SetAttributes[logWrite,HoldAllComplete];
 logWrite[message_]:=WriteString[Streams["stdout"],message];
@@ -205,7 +203,7 @@ handleOutput[]:=Module[{},
           boxes=renderingFailed["The conversion to the box representation took too much time."];
           text="$Failed";
         ];
-        
+        boxes // $POST;(* wolfram player *)
         logWriteDebug["htmlMemoryLimit = "<>ToString[$getKernelConfig["htmlMemoryLimit"]]<>" MB"];
         logWriteDebug["htmlTimeLimit = "<>ToString[$getKernelConfig["htmlTimeLimit"]/1000.0]<>" seconds"];
         html=TimeConstrained[
@@ -455,7 +453,6 @@ handleMainLink[]:=Module[{},
         OutputNamePacket,
           $outputName=packet[[1]];,
         ReturnExpressionPacket,
-          $evaluating["packet"] // First // $POST // Quiet; (* call wolfram player *)
           queuePush[$outputQueue,<|
             "uuid"->$evaluating["uuid"],
             "name"->$outputName,
