@@ -5,11 +5,11 @@
 $TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
 If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
 
-WolframPlayer[box_] := {
+WolframPlayer[box_] := LocalSubmit[{
         "wolframplayer",
-	Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
+        Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
         "&"
-} // StringRiffle // Run
+} // StringRiffle // Run // Evaluate]
 
 (*$DisplayFunction = WolframPlayer[#, ToBoxes@#]&;*)
 
