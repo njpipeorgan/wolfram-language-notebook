@@ -14,7 +14,7 @@ WolframPlayer[expr_, box_] := Block[{},
 ]
 (*$DisplayFunction = WolframPlayer[#, ToBoxes@#]&;*)
 $POST = With[{box = ToBoxes@#},
-	If[FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox]@box,
+	If[FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|SliderBox|Slider2DBox]@box,
 			#,
 			WolframPlayer[#, box]
 	]
