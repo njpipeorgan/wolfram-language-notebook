@@ -7,14 +7,15 @@ If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
 
 WolframPlayer[box_] := {
         "wolframplayer",
-		    Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"]
+	Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
+        "&"
 } // StringRiffle // Run
 
 (*$DisplayFunction = WolframPlayer[#, ToBoxes@#]&;*)
 
 $POST[box_] := If[
       !FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|ButtonBox|SliderBox|Slider2DBox]@box,
-			WolframPlayer[box]
+      WolframPlayer[box]
 ];
 
 
