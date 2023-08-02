@@ -49,6 +49,8 @@ export class NotebookConfig {
     const configNames = [
       "frontEnd.storeOutputExpressions",
       "rendering.outputSizeLimit",
+      "rendering.renderByWolframPlayer",
+      //"rendering.wolframplayerPath",
       "rendering.boxesTimeLimit",
       "rendering.htmlTimeLimit",
       "rendering.htmlMemoryLimit",

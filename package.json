@@ -155,6 +155,16 @@
           "default": true,
           "description": "Store the output expressions (Wolfram Language) in the notebook. They are required when export cells with output to .nb files."
         },
+        "wolframLanguageNotebook.rendering.renderByWolframPlayer": {
+          "type": "boolean",
+          "default": false,
+          "description": "whether or not enabling wolfram player."
+        },
+        "wolframLanguageNotebook.rendering.wolframplayerPath": {
+          "type": "string",
+          "description": "Specifies the path to wolframplayer, if empty, will infer this path using the path to the kernel",
+          "default": ""
+        },
         "wolframLanguageNotebook.rendering.renderAsImages": {
           "type": "boolean",
           "default": false,

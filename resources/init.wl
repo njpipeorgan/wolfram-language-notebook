@@ -2,21 +2,6 @@
 
 (* ::Section:: *)
 (*Import*)
-$TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
-If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
-
-WolframPlayer[box_] := {
-        "wolframplayer",
-        Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
-        "&"
-} // StringRiffle // Run
-
-(*$DisplayFunction = WolframPlayer[#, ToBoxes@#]&;*)
-
-$POST[box_] := If[
-      !FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|ButtonBox|SliderBox|Slider2DBox]@box,
-      WolframPlayer[box]
-];
 
 
 SetAttributes[logWrite,HoldAllComplete];
@@ -69,6 +54,8 @@ $config=<|
   "htmlTimeLimit"-><|"value"->10000(*ms*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "htmlMemoryLimit"-><|"value"->200(*MB*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "imageWithTransparency"-><|"value"->False,"requires"->(#===True||#===False&)|>,
+  (* "wolframplayerPath"-><|"value"->$CommandLine,"requires"->(#===True||#===False&)|>, *)
+  "renderByWolframPlayer"-><|"value"->False,"requires"->(#===True||#===False&)|>,
   "renderAsImages"-><|"value"->False,"requires"->(#===True||#===False&)|>,
   "invertBrightnessInDarkThemes"-><|"value"->True,"requires"->(#===True||#===False&)|>
 |>;
@@ -84,6 +71,19 @@ $setKernelConfig[name_,value_]:=Module[{entry=$config[name]},
   ];
 ];
 
+$TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
+If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
+
+WolframPlayer[box_] := {
+        "wolframplayer",
+        Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
+        "&"
+} // StringRiffle // Run
+
+$POST[box_] := If[
+      !FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|ButtonBox|SliderBox|Slider2DBox]@box,
+      WolframPlayer[box]
+];
 
 $getKernelConfig[name_]:=If[MissingQ[$config[name]],
   logWrite[ToString[name]<>" is not a valid config name to be read"];0,
@@ -204,7 +204,9 @@ handleOutput[]:=Module[{},
           boxes=renderingFailed["The conversion to the box representation took too much time."];
           text="$Failed";
         ];
-        boxes // $POST;(* wolfram player *)
+        If[$getKernelConfig["renderByWolframPlayer"],
+            boxes // $POST;(* wolfram player *)
+        ];
         logWriteDebug["htmlMemoryLimit = "<>ToString[$getKernelConfig["htmlMemoryLimit"]]<>" MB"];
         logWriteDebug["htmlTimeLimit = "<>ToString[$getKernelConfig["htmlTimeLimit"]/1000.0]<>" seconds"];
         html=TimeConstrained[
