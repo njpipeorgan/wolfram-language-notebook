@@ -54,7 +54,7 @@ $config=<|
   "htmlTimeLimit"-><|"value"->10000(*ms*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "htmlMemoryLimit"-><|"value"->200(*MB*),"requires"->(Head[#]===Integer&&#>0&)|>,
   "imageWithTransparency"-><|"value"->False,"requires"->(#===True||#===False&)|>,
-  (* "wolframplayerPath"-><|"value"->$CommandLine,"requires"->(#===True||#===False&)|>, *)
+  "wolframplayerPath"-><|"value"->(FileNames[All, $InstallationDirectory, 4] (*Executables/wolframplayer*)// Select[StringEndsQ["wolframplayer"]] // First),"requires"->(StringQ)|>,
   "renderByWolframPlayer"-><|"value"->False,"requires"->(#===True||#===False&)|>,
   "renderAsImages"-><|"value"->False,"requires"->(#===True||#===False&)|>,
   "invertBrightnessInDarkThemes"-><|"value"->True,"requires"->(#===True||#===False&)|>
@@ -75,7 +75,7 @@ $TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
 If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
 
 WolframPlayer[box_] := {
-        "wolframplayer",
+        $getKernelConfig["wolframplayerPath"],
         Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
         "&"
 } // StringRiffle // Run

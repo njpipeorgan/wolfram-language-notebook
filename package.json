@@ -162,7 +162,7 @@
         },
         "wolframLanguageNotebook.rendering.wolframplayerPath": {
           "type": "string",
-          "description": "Specifies the path to wolframplayer, if empty, will infer this path using the path to the kernel",
+          "description": "Specifies the path to wolframplayer, if empty, will infer this path using $InstallationDirectory",
           "default": ""
         },
         "wolframLanguageNotebook.rendering.renderAsImages": {
