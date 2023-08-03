@@ -33,7 +33,7 @@ If[!$hasZeroMQ,
 If[!$hasCodeFmt,
   logError["Failed to load CodeFormatter` package."];Exit[];
 ];
-
+CodeFormatter`$DefaultLineWidth=Infinity; (* https://github.com/WolframResearch/codeformatter/issues/3 *)
 
 SetAttributes[abortOnMessage,HoldAllComplete];
 abortOnMessage[code_]:=Block[{return},
