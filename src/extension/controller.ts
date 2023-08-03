@@ -23,6 +23,8 @@ import { tex2svg } from "./load-mathjax";
 import { ExecutionQueue } from "./notebook-kernel";
 import { KernelStatusBarItem, ExportNotebookStatusBarItem, NotebookOutputPanel } from "./ui-items";
 import { NotebookConfig } from "./notebook-config";
+import * as uuid from "uuid";
+
 
 export class WLNotebookController {
   readonly id = "wolfram-language-notebook-controller";
@@ -904,6 +906,7 @@ export class WLNotebookController {
   formatFrontEnd(text: string, asynchronous: boolean = false) {
     if (this.kernelConnected()) {
       this.postMessageToKernel({
+        uuid: uuid.v4(),
         type: "format",
         async: asynchronous,
         text

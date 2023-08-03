@@ -4,14 +4,14 @@
  */
 import * as vscode from "vscode";
 import { notebookController } from "./middle"
-const formatString = (s: string) => {
-    let res;
-    notebookController.formatCode(s).then(s => res = s);
-    return s + "(* formated *)";
+const formatString = async (s: string) => {
+    let res: string;
+
+    return (await notebookController.formatCode(s))
 }
 export const wlDocumentFormattingEditProvider: vscode.DocumentFormattingEditProvider =
 {
-    provideDocumentFormattingEdits(document, options, token) {
+    async provideDocumentFormattingEdits(document, options, token) {
         const cellContent: string[] = [];
         for (let i = 0; i < document.lineCount; i++) {
             cellContent.push(document.lineAt(i).text);
@@ -28,7 +28,7 @@ export const wlDocumentFormattingEditProvider: vscode.DocumentFormattingEditProv
                     ),
                 ),
                 // Here needs a function to format the code
-                formatString(cellContentString)
+                await formatString(cellContentString)
             ),
         ];
     },

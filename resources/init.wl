@@ -218,7 +218,7 @@ handleOutput[]:=Module[{},
         $currentOutputMessage=TemplateApply["``::``", List@@output["packet"]];,
       TextPacket,
         Which[
-          StringContainsQ[$previousOutputMessage,"::"]&&StringContainsQ[output["packet"][[1]],$previousOutputMessage],
+          !KeyExistsQ[output, "action"] && StringContainsQ[$previousOutputMessage,"::"]&&StringContainsQ[output["packet"][[1]],$previousOutputMessage],
           sendMessage[<|
             "type"->"show-message",
             "uuid"->output["uuid"],
@@ -233,8 +233,9 @@ handleOutput[]:=Module[{},
           sendMessage[
             <|"type" -> "format",
              "uuid" -> output["uuid"], 
-             "text" -> output["text"]|>],
-            True,
+             "text" -> ToString[output["packet"] // First]|>];
+          ,
+          True,
           sendMessage[<|
             "type"->"show-text",
             "uuid"->output["uuid"],
