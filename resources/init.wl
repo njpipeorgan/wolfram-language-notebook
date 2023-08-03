@@ -157,7 +157,7 @@ stackClear[q_]:=Module[{},q=<||>];
 ClearAll[sendMessage,readMessage];
 sendMessage[message_ByteArray]:=ZeroMQLink`ZMQSocketWriteMessage[$zmqserver,message];
 sendMessage::usage = "send <| |> to zmqPort"
-sendMessage[message_Association]:=sendMessage[StringToByteArray@Developer`WriteRawJSONString[message,"Compact"->True] (* HERE *)];
+sendMessage[message_Association]:=sendMessage[StringToByteArray@Developer`WriteRawJSONString[message,"Compact"->True]];
 sendMessage[message_]:=sendMessage[StringToByteArray[ToString[message],"UTF-8"]];
 readMessage[timeout_:1.0]:=Module[{ready=SocketReadyQ[$zmqserver,timeout]},If[ready,ByteArrayToString[SocketReadMessage[$zmqserver],"UTF-8"],$Failed]];
 (*sendMessage[message_]:=Echo[message];
@@ -269,13 +269,11 @@ handleMessage[]:=Module[{},
       "test",
         sendMessage[<|"type"->"test","text"->$message["text"],"version"->$Version|>];,
       "format",
-        logWrite["\nL271: \n formatted code \n"];
-        logWrite[$message["text"] // CodeFormat];
         queuePush[$outputQueue,<|
             "uuid"->$message["uuid"],
             "type"-> TextPacket,
             "action" -> "format",
-            "packet" -> TextPacket[($message["text"] // CodeFormat)]
+            "packet" -> TextPacket[$message["text"] // CodeFormat]
             |>];,
       "evaluate-cell",
         If[SyntaxQ[$message["text"]],
