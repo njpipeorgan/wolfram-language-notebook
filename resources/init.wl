@@ -5,9 +5,10 @@
 
 
 SetAttributes[logWrite,HoldAllComplete];
+$debug=True;
 logWrite[message_]:=WriteString[Streams["stdout"],message];
 SetAttributes[logWriteDebug,HoldAllComplete];
-logWriteDebug[message_]:=Null;(*logWrite[message];*)
+logWriteDebug[message_]:=If[TrueQ[$debug],logWrite[message]];
 logError[message_]:=(WriteString[Streams["stdout"],"<ERROR> "<>message];Exit[];)
 
 
@@ -73,12 +74,12 @@ $setKernelConfig[name_,value_]:=Module[{entry=$config[name]},
 
 $TemporaryOutput = FileNameJoin@{$TemporaryDirectory, "WolframKernelOutput"};
 If[!DirectoryQ@#, CreateDirectory@#] &@$TemporaryOutput;
+logWriteDebug[TemplateApply["$TemporaryOutput = ``",$TemporaryOutput]]
 
 WolframPlayer[box_] := {
-        $getKernelConfig["wolframplayerPath"],
-        Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"],
-        "&"
-} // StringRiffle // Run
+        logWriteDebug[{"wolframplayer found? ",FileExistsQ[$getKernelConfig["wolframplayerPath"]]," path? ",$getKernelConfig["wolframplayerPath"]}];$getKernelConfig["wolframplayerPath"],
+        Export[FileNameJoin@{$TemporaryOutput, CreateUUID["CDFOutput-"]<>".cdf"}, Notebook[{Cell@BoxData@box}, WindowSize -> All], "CDF"]
+} // StartProcess
 
 $POST[box_] := If[
       !FreeQ[DynamicBox|DynamicModuleBox|GraphicsBox|Graphics3DBox|PaneSelectorBox|TooltipBox|ButtonBox|SliderBox|Slider2DBox]@box,

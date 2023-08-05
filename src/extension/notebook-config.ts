@@ -50,7 +50,7 @@ export class NotebookConfig {
       "frontEnd.storeOutputExpressions",
       "rendering.outputSizeLimit",
       "rendering.renderByWolframPlayer",
-      //"rendering.wolframplayerPath",
+      "rendering.wolframplayerPath",
       "rendering.boxesTimeLimit",
       "rendering.htmlTimeLimit",
       "rendering.htmlMemoryLimit",
