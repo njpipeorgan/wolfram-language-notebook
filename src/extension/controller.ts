@@ -28,7 +28,7 @@ export class WLNotebookController {
   readonly id = "wolfram-language-notebook-controller";
   readonly notebookType = "wolfram-language-notebook";
   readonly label = 'Wolfram Language';
-  readonly supportedLanguages = [ "wolfram" ];
+  readonly supportedLanguages = ["wolfram"];
 
   private thisExtension: vscode.Extension<any> | undefined;
   private isInWorkspace: boolean | undefined;
@@ -116,11 +116,11 @@ export class WLNotebookController {
 
     // when notebook config changes, send a message to the kernel
     this.config.onDidChange((config: NotebookConfig) => {
-      this.postMessageToKernel({type: "set-config", config: config.getKernelRelatedConfigs()});
+      this.postMessageToKernel({ type: "set-config", config: config.getKernelRelatedConfigs() });
     });
 
     this.disposables.push(this.statusBarKernelItem, this.statusBarExportItem, this.outputPanel, this.config);
-    
+
     this.controller.dispose = () => {
       this.quitKernel();
       this.outputPanel.print(`Notebook controller is disposed; there are ${this.disposables.length} disposables.`);
@@ -188,7 +188,7 @@ export class WLNotebookController {
         return;
       }
     });
-  
+
   }
 
   private async handleMessageFromKernel() {
@@ -228,12 +228,12 @@ export class WLNotebookController {
           if (execution) {
             const cellLabel = String(message.name || "");
             const renderMathJax = typeof message.text === "string" &&
-              Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) && 
+              Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) &&
               this.config.get("rendering.renderTexForm") === true;
             const outputItems: vscode.NotebookCellOutputItem[] = [];
             if (renderMathJax) {
               outputItems.push(vscode.NotebookCellOutputItem.text(
-                tex2svg(JSON.parse(message.text as string), {display: true}),
+                tex2svg(JSON.parse(message.text as string), { display: true }),
                 "text/html"));
             }
             if (typeof message.html === "string" && !renderMathJax) {
@@ -372,7 +372,7 @@ export class WLNotebookController {
     this.outputPanel.clear();
     let connectionTimeout = this.config.get("kernel.connectionTimeout") as number;
     if (!(1000 < connectionTimeout)) {
-     connectionTimeout = 1000; // milliseconds
+      connectionTimeout = 1000; // milliseconds
     }
     const kernelIsRemote = (kernel?.type === "remote");
     const kernelCommand = String(kernel?.command || "");
@@ -490,12 +490,12 @@ export class WLNotebookController {
               throw new Error("test");
             }
             this.evaluateFrontEnd(kernelRenderInitString, false);
-            this.postMessageToKernel({type: "set-config", config: this.config.getKernelRelatedConfigs()});
+            this.postMessageToKernel({ type: "set-config", config: this.config.getKernelRelatedConfigs() });
             this.connectingtoKernel = false;
             this.statusBarKernelItem.setConnected(message["version"] || "", kernelIsRemote);
             try {
               this.handleMessageFromKernel();
-            } catch {}
+            } catch { }
             this.checkoutExecutionQueue();
           } catch (error) {
             if (error instanceof Error) {
@@ -503,7 +503,7 @@ export class WLNotebookController {
                 this.outputPanel.print("The kernel took too long to respond through the ZeroMQ link.");
               } else if (error.message === "test") {
                 this.outputPanel.print("The kernel responded with a wrong test message, as above");
-                this.outputPanel.print("  The expected message should contain: " + JSON.stringify({type: "test", text: rand}));
+                this.outputPanel.print("  The expected message should contain: " + JSON.stringify({ type: "test", text: rand }));
               }
             }
             this.quitKernel();
@@ -532,7 +532,7 @@ export class WLNotebookController {
       });
     }
 
-    
+
   };
 
   private launchKernel(kernelName: string | undefined = undefined, testInTerminal: boolean = false) {
@@ -606,8 +606,8 @@ export class WLNotebookController {
       } else {
         vscode.window.showErrorMessage(
           typeof kernel !== "object" ?
-          `Failed to find the kernel ${kernelName} in configurations.` :
-          `Kernel ${kernelName} must contain a \"command\" field.`,
+            `Failed to find the kernel ${kernelName} in configurations.` :
+            `Kernel ${kernelName} must contain a \"command\" field.`,
           "Edit configurations", "Dismiss"
         ).then(value => {
           if (value === "Edit configurations") {
@@ -638,12 +638,12 @@ export class WLNotebookController {
     const exists = name in previousKernels && typeof previousKernels[name] === "object";
     const previously = exists ? previousKernels[name] : {};
 
-    const kernelLocationPrompt = this.isInWorkspace ? 
+    const kernelLocationPrompt = this.isInWorkspace ?
       ["On this remote system", "On a different machine (via SSH)"] :
       ["On this machine", "On a remote machine (via SSH)"];
     let type = await vscode.window.showQuickPick(kernelLocationPrompt, {
-      placeHolder: `Where will this kernel be launched? ${exists ? 
-          `(was: ${kernelLocationPrompt[previously?.type === "remote" ? 1 : 0]})` : ""
+      placeHolder: `Where will this kernel be launched? ${exists ?
+        `(was: ${kernelLocationPrompt[previously?.type === "remote" ? 1 : 0]})` : ""
         }`
     });
     if (!type) {
@@ -716,7 +716,7 @@ export class WLNotebookController {
       { [name]: { type, command, ports } };
 
     const prevKernelConfigJSON = JSON.stringify(this.config.get("kernel.configurations"));
-    const newKernelConfig = {...JSON.parse(prevKernelConfigJSON), ...newKernel};
+    const newKernelConfig = { ...JSON.parse(prevKernelConfigJSON), ...newKernel };
     const update = await this.config.update("kernel.configurations", newKernelConfig, vscode.ConfigurationTarget.Global);
 
     vscode.window.showInformationMessage("A new kernel has been added.", "Start this kernel", "Dismiss").then(value => {
@@ -874,7 +874,7 @@ export class WLNotebookController {
         });
       }
     });
-    
+
     if (choice.label === "Wolfram Language Package/Script") {
       const serializedCells = cellData.filter(data => data.type === "Input").map(data => data.text + "\n");
       let documentText = "(* ::Package:: *)\n\n" + serializedCells.join("\n\n");
