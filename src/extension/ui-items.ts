@@ -99,7 +99,7 @@ export class NotebookOutputPanel {
   constructor(name: string) {
     this.outputChannel = vscode.window.createOutputChannel(name);
   }
-  
+
   print(str: string) {
     this.outputChannel.appendLine("[" + new Date().toUTCString() + "] " + str);
   }
@@ -120,3 +120,5 @@ export class NotebookOutputPanel {
     this.outputChannel.dispose();
   }
 };
+
+export const WLNotebookOutputPanel = new NotebookOutputPanel("Wolfram Language Notebook");
