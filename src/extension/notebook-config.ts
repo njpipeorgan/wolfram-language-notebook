@@ -15,55 +15,70 @@
 import * as vscode from "vscode";
 
 export class NotebookConfig {
-  // private config: vscode.WorkspaceConfiguration;
-  private disposables: any[] = [];
+    private disposables: any[] = [];
+    private settingsCommandName: string;
 
-  constructor() {
-    // this.config = vscode.workspace.getConfiguration("wolframLanguageNotebook");
-  }
+    constructor(isInWorkspace: boolean) {
+        this.settingsCommandName = isInWorkspace ? "workbench.action.openRemoteSettingsFile" : "workbench.action.openSettingsJson";
+    }
 
-  dispose() {
-    this.disposables.forEach(item => {
-      item.dispose();
-    });
-  }
+    dispose() {
+        this.disposables.forEach(item => {
+            item.dispose();
+        });
+    }
 
-  onDidChange(callback: (config: NotebookConfig) => unknown) {
-    this.disposables.push(vscode.workspace.onDidChangeConfiguration(e => {
-      if (e.affectsConfiguration("wolframLanguageNotebook")) {
-        callback(this);
-      }
-    }));
-  }
+    onDidChange(callback: (config: NotebookConfig) => unknown) {
+        this.disposables.push(vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration("wolframLanguageNotebook")) {
+                callback(this);
+            }
+        }));
+    }
 
-  get(configName: string) {
-    return vscode.workspace.getConfiguration("wolframLanguageNotebook").get(configName);
-  }
+    get(configName: string) {
+        return vscode.workspace.getConfiguration("wolframLanguageNotebook").get(configName);
+    }
 
-  async update(configName: string, value: any, configurationTarget: any) {
-    return await vscode.workspace.getConfiguration("wolframLanguageNotebook").update(
-      configName, value, configurationTarget);
-  }
+    async update(configName: string, value: any, configurationTarget: any) {
+        return await vscode.workspace.getConfiguration("wolframLanguageNotebook").update(
+            configName, value, configurationTarget);
+    }
 
-  getKernelRelatedConfigs() {
-    const configNames = [
-      "frontEnd.storeOutputExpressions",
-      "rendering.outputSizeLimit",
-      "rendering.renderByWolframPlayer",
-      //"rendering.wolframplayerPath",
-      "rendering.boxesTimeLimit",
-      "rendering.htmlTimeLimit",
-      "rendering.htmlMemoryLimit",
-      "rendering.imageWithTransparency",
-      "rendering.renderAsImages",
-      "rendering.invertBrightnessInDarkThemes"
-    ];
-    const renderingConfig = vscode.workspace.getConfiguration("wolframLanguageNotebook");
-    let config: { [key: string]: any } = {};
-    configNames.forEach(name => {
-      config[name.split('.').pop() as string] = renderingConfig.get(name);
-    });
-    return config;
-  }
+
+    async revealKernelConfigs() {
+        return await vscode.commands.executeCommand(
+            this.settingsCommandName,
+            "wolframLanguageNotebook.kernel.configurations"
+        );
+    }
+
+    async revealExtensionConfigs() {
+        return await vscode.commands.executeCommand(
+            "workbench.action.openSettings",
+            "wolframLanguageNotebook"
+        );
+    }
+
+    getKernelRelatedConfigs() {
+        const configNames = [
+            "frontEnd.storeOutputExpressions",
+            "rendering.outputSizeLimit",
+            "rendering.renderByWolframPlayer",
+            // "rendering.wolframplayerPath",
+            "rendering.boxesTimeLimit",
+            "rendering.htmlTimeLimit",
+            "rendering.htmlMemoryLimit",
+            "rendering.imageWithTransparency",
+            "rendering.renderAsImages",
+            "rendering.invertBrightnessInDarkThemes"
+        ];
+        const renderingConfig = vscode.workspace.getConfiguration("wolframLanguageNotebook");
+        let config: { [key: string]: any } = {};
+        configNames.forEach(name => {
+            config[name.split('.').pop() as string] = renderingConfig.get(name);
+        });
+        return config;
+    }
 
 }
