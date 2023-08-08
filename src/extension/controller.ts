@@ -27,7 +27,7 @@ try {
 
 import { deserializeMarkup } from "./markdown-serializer";
 import { tex2svg } from "./load-mathjax";
-import { ExecutionQueue, ExecutionItem } from "./execution-queue";
+import { ExecutionQueue, ExecutionItem, MessageHandler } from "./execution-queue";
 import { KernelStatusBarItem, ExportNotebookStatusBarItem } from "./ui-items";
 import { WLNotebookOutputPanel } from "./output-panel";
 import { NotebookConfig } from "./notebook-config";
@@ -49,15 +49,14 @@ export class WLNotebookController extends Disposable {
 
     private readonly thisExtension;
     private readonly controller;
-    private readonly statusBarKernelItem = new KernelStatusBarItem(this.supportedLanguages);
-    private readonly statusBarExportItem = new ExportNotebookStatusBarItem();
     private readonly messageChannel?: vscode.NotebookRendererMessaging;
-    private readonly fileHandler = new FileHandler();
-    private readonly kernelConnection = new WLKernelConnection();
+    private readonly selectedNotebooks: Set<vscode.NotebookDocument> = new Set();
 
-    private selectedNotebooks: Set<vscode.NotebookDocument> = new Set();
-
-    private executionQueue = new ExecutionQueue();
+    readonly statusBarKernelItem = new KernelStatusBarItem(this.supportedLanguages);
+    readonly statusBarExportItem = new ExportNotebookStatusBarItem();
+    readonly fileHandler = new FileHandler();
+    readonly kernelConnection = new WLKernelConnection();
+    readonly executionQueue = new ExecutionQueue();
 
     constructor() {
         super();
@@ -92,197 +91,30 @@ export class WLNotebookController extends Disposable {
         };
 
         this.kernelConnection.registerMessageHandler(
-            "show-input-name", new ShowInputNameMessageHandler(this).handleMessage);
+            "show-input-name",
+            new ShowInputNameMessageHandler(this).handleMessage
+        );
+        this.kernelConnection.registerMessageHandler(
+            ["show-output", "show-message", "show-text"],
+            new ShowOutputMessageHandler(this).handleMessage
+        );
+        this.kernelConnection.registerMessageHandler(
+            "evaluation-done",
+            new EvaluationDoneMessageHandler(this).handleMessage
+        );
+        this.kernelConnection.registerMessageHandler(
+            ["request-input", "request-input-string"],
+            new RequestInputMessageHandler(this).handleMessage
+        );
+        this.kernelConnection.registerMessageHandler(
+            "reply-export-notebook",
+            new ReplyExportNotebookMessageHandler(this).handleMessage
+        );
     }
 
     getController() {
         return this.controller;
     }
-
-    getExecutionQueue() {
-        return this.executionQueue;
-    }
-
-    private getRandomPort(portRanges: string) {
-        let ranges = [...portRanges.matchAll(/\s*(\d+)\s*(?:[-‐‑‒–]\s*(\d+)\s*)?/g)]
-            .map(match => [parseInt(match[1]), parseInt(match[match[2] === undefined ? 1 : 2])])
-            .map(pair => [Math.max(Math.min(pair[0], pair[1]), 1), Math.min(Math.max(pair[0], pair[1]) + 1, 65536)])
-            .filter(pair => pair[0] < pair[1]);
-        if (ranges.length === 0) {
-            ranges = [[49152, 65536]];
-        }
-        let cmf: number[] = [];
-        ranges.reduce((acc, pair, i) => {
-            cmf[i] = acc + (pair[1] - pair[0]);
-            return cmf[i];
-        }, 0);
-
-        const rand = Math.random() * cmf[cmf.length - 1];
-        for (let i = 0; i < cmf.length; ++i) {
-            if (rand <= cmf[i]) {
-                const [lower, upper] = ranges[i];
-                return Math.min(Math.floor(Math.random() * (upper - lower)) + lower, upper - 1);
-            }
-        }
-    }
-
-    private async handleMessageFromKernel() {
-        while (true) {
-            let [message] = await this.socket.receive().catch(() => {
-                if (this.kernelConnected()) {
-                    WLNotebookOutputPanel.print(`Failed to receive messages from the kernel, but the kernel is connected.`);
-                }
-                return [new Error("receive-message")];
-            });
-            if (message instanceof Error) {
-                return;
-            }
-            message = Buffer.from(message).toString("utf-8");
-            try {
-                message = JSON.parse(message);
-            } catch (error) {
-                WLNotebookOutputPanel.print("Failed to parse the following message:");
-                WLNotebookOutputPanel.print(message);
-                continue;
-            }
-
-            const id = message?.uuid || "";
-            const execution = this.executionQueue.find(id);
-            switch (message.type) {
-                case "show-input-name":
-                    if (execution) {
-                        const match = message.name.match(/In\[(\d+)\]/);
-                        if (match) {
-                            execution.execution.executionOrder = parseInt(match[1]);
-                        }
-                    }
-                    break;
-                case "show-output":
-                case "show-message":
-                case "show-text":
-                    if (execution) {
-                        const cellLabel = String(message.name || "");
-                        const renderMathJax = typeof message.text === "string" &&
-                            Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) &&
-                            this.config.get("rendering.renderTexForm") === true;
-                        const outputItems: vscode.NotebookCellOutputItem[] = [];
-                        if (renderMathJax) {
-                            outputItems.push(vscode.NotebookCellOutputItem.text(
-                                tex2svg(JSON.parse(message.text as string), { display: true }),
-                                "text/html"));
-                        }
-                        if (typeof message.html === "string" && !renderMathJax) {
-                            outputItems.push(vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html"));
-                        }
-                        if (typeof message.text === "string" && this.config.get("frontEnd.storeOutputExpressions")) {
-                            outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
-                        }
-                        const output = new vscode.NotebookCellOutput(outputItems);
-                        output.metadata = { cellLabel, isBoxData: message.isBoxData || false };
-                        if (execution?.hasOutput) {
-                            execution.execution.appendOutput(output);
-                        } else {
-                            execution.execution.replaceOutput(output);
-                            execution.hasOutput = true;
-                        }
-                    }
-                    break;
-                case "evaluation-done":
-                    if (execution && !execution.hasOutput) {
-                        execution.execution.replaceOutput([]);
-                    }
-                    this.executionQueue.end(id, true);
-                    this.checkoutExecutionQueue();
-                    break;
-                case "request-input":
-                case "request-input-string":
-                    let prompt = message.prompt as string;
-                    let choices: any = null;
-                    if (prompt === "? ") {
-                        prompt = "";
-                    } else if (message.type === "request-input-string") {
-                        const match = prompt.match(/^(.*) \(((?:.+, )*)(.+)((?:, .+)*)\) \[\3\]: $/);
-                        if (match) {
-                            prompt = match[1];
-                            choices = [
-                                ...match[2].split(", ").slice(0, -1),
-                                match[3],
-                                ...match[4].split(", ").slice(1)
-                            ].filter(c => (c.length > 0));
-                        }
-                    }
-                    if (choices) {
-                        const input = await vscode.window.showQuickPick(choices, {
-                            title: "The kernel requested a choice",
-                            placeHolder: prompt,
-                            ignoreFocusOut: true
-                        });
-                        this.kernelConnection.postMessage({
-                            type: "reply-input-string",
-                            text: input || ""
-                        });
-                    } else {
-                        const input = await vscode.window.showInputBox({
-                            title: "The kernel requested an input",
-                            placeHolder: prompt,
-                            ignoreFocusOut: true
-                        });
-                        this.kernelConnection.postMessage({
-                            type: (message.type === "request-input" ? "reply-input" : "reply-input-string"),
-                            text: input || ""
-                        });
-                    }
-                    break;
-                case "reply-export-notebook":
-                    this.statusBarExportItem.hide();
-                    if ((message.text || "") === "") {
-                        // when there is nothing to export, maybe due to pdf export failure
-                        vscode.window.showErrorMessage("Failed to export the notebook.");
-                        break;
-                    }
-                    const defaultFormat = message.format === "pdf" ? "pdf" : "nb";
-                    const defaultDescription = message.format === "pdf" ? "PDF" : "Wolfram Notebook";
-                    const exportData = message.format === "pdf" ? Buffer.from(message.text, "base64") : message.text as string;
-                    const path = await vscode.window.showSaveDialog({
-                        defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, "." + defaultFormat)),
-                        filters: {
-                            [defaultDescription]: [defaultFormat],
-                            "All Files": ["*"]
-                        }
-                    });
-                    if (path) {
-                        this.fileHandler.writeAsync(path.fsPath, exportData);
-                    }
-                    break;
-                case "update-symbol-usages":
-                    break;
-                case "update-symbol-usages-progress":
-                    break;
-                default:
-                    WLNotebookOutputPanel.print("The following message has an unexpect type:");
-                    WLNotebookOutputPanel.print(JSON.stringify(message));
-            }
-        }
-    }
-
-    private quitKernel() {
-        if (this.kernel) {
-            // clear executionQueue only when the kernel was connected
-            this.executionQueue.clear();
-            if (this.kernel.pid) {
-                WLNotebookOutputPanel.print(`Killing kernel process, pid = ${this.kernel.pid}`);
-            }
-            this.kernel.kill("SIGKILL");
-            this.kernel = undefined;
-            this.connectingtoKernel = false;
-        }
-        if (this.socket !== undefined) {
-            WLNotebookOutputPanel.print("Closing socket");
-            this.socket.close();
-            this.socket = undefined;
-        }
-        this.statusBarKernelItem.setDisconnected();
-    };
 
     private showKernelLaunchFailed(kernelName: string = "") {
         WLNotebookOutputPanel.show();
@@ -725,7 +557,7 @@ export class WLNotebookController extends Disposable {
         this.checkoutExecutionQueue();
     }
 
-    private checkoutExecutionQueue() {
+    checkoutExecutionQueue() {
         const execution = this.executionQueue.getNextPendingExecution();
         if (execution) {
             if (this.kernelConnected()) {
@@ -857,10 +689,17 @@ export class WLNotebookController extends Disposable {
     }
 }
 
-
 interface MessageHandler {
-    controller: WLNotebookController; // Add a reference to the Controller
-    handleMessage(message: KernelMessage): void;
+    controller: WLNotebookController;
+    handleMessage(message: KernelMessage): void | Promise<void>;
+}
+
+class NoOperationMessageHandler implements MessageHandler {
+    controller: WLNotebookController;
+    constructor(controller: WLNotebookController) {
+        this.controller = controller;
+    }
+    handleMessage(message: KernelMessage) { }
 }
 
 class ShowInputNameMessageHandler implements MessageHandler {
@@ -869,12 +708,138 @@ class ShowInputNameMessageHandler implements MessageHandler {
         this.controller = controller;
     }
     handleMessage(message: KernelMessage) {
-        const execution = this.controller.getExecutionQueue().find(message.id);
-        if (execution) {
-            const match = message.name.match(/In\[(\d+)\]/);
+        const execution = this.controller.executionQueue.find(message.id);
+        if (!execution) {
+            return;
+        }
+        const match = message.name.match(/In\[(\d+)\]/);
+        if (match) {
+            execution.execution.executionOrder = parseInt(match[1]);
+        }
+    }
+}
+
+class ShowOutputMessageHandler implements MessageHandler {
+    controller: WLNotebookController;
+    constructor(controller: WLNotebookController) {
+        this.controller = controller;
+    }
+    handleMessage(message: KernelMessage) {
+        const execution = this.controller.executionQueue.find(message.id);
+        if (!execution) {
+            return;
+        }
+        const cellLabel = String(message.name || "");
+        const renderMathJax = typeof message.text === "string" &&
+            Boolean(cellLabel.match("^Out\\[.+\\]//TeXForm=.*")) &&
+            this.controller.config.get("rendering.renderTexForm") === true;
+        const outputItems: vscode.NotebookCellOutputItem[] = [];
+        if (renderMathJax) {
+            outputItems.push(vscode.NotebookCellOutputItem.text(
+                tex2svg(JSON.parse(message.text as string), { display: true }),
+                "text/html"));
+        }
+        if (typeof message.html === "string" && !renderMathJax) {
+            outputItems.push(vscode.NotebookCellOutputItem.text(message.html, "x-application/wolfram-language-html"));
+        }
+        if (typeof message.text === "string" && this.controller.config.get("frontEnd.storeOutputExpressions")) {
+            outputItems.push(vscode.NotebookCellOutputItem.text(message.text, "text/plain"));
+        }
+        const output = new vscode.NotebookCellOutput(outputItems);
+        output.metadata = { cellLabel, isBoxData: message.isBoxData || false };
+        if (execution?.hasOutput) {
+            execution.execution.appendOutput(output);
+        } else {
+            execution.execution.replaceOutput(output);
+            execution.hasOutput = true;
+        }
+    }
+}
+
+class EvaluationDoneMessageHandler implements MessageHandler {
+    controller: WLNotebookController;
+    constructor(controller: WLNotebookController) {
+        this.controller = controller;
+    }
+    handleMessage(message: KernelMessage) {
+        const execution = this.controller.executionQueue.find(message.id);
+        if (execution && !execution.hasOutput) {
+            execution.execution.replaceOutput([]);
+        }
+        this.controller.executionQueue.end(id, true);
+        this.controller.checkoutExecutionQueue();
+    }
+}
+
+class RequestInputMessageHandler implements MessageHandler {
+    controller: WLNotebookController;
+    constructor(controller: WLNotebookController) {
+        this.controller = controller;
+    }
+    async handleMessage(message: KernelMessage) {
+        let prompt = message.prompt as string;
+        let choices: any = null;
+        if (prompt === "? ") {
+            prompt = "";
+        } else if (message.type === "request-input-string") {
+            const match = prompt.match(/^(.*) \(((?:.+, )*)(.+)((?:, .+)*)\) \[\3\]: $/);
             if (match) {
-                execution.execution.executionOrder = parseInt(match[1]);
+                prompt = match[1];
+                choices = [
+                    ...match[2].split(", ").slice(0, -1),
+                    match[3],
+                    ...match[4].split(", ").slice(1)
+                ].filter(c => (c.length > 0));
             }
+        }
+        if (choices) {
+            const input = await vscode.window.showQuickPick(choices, {
+                title: "The kernel requested a choice",
+                placeHolder: prompt,
+                ignoreFocusOut: true
+            });
+            this.controller.kernelConnection.postMessage({
+                type: "reply-input-string",
+                text: input || ""
+            });
+        } else {
+            const input = await vscode.window.showInputBox({
+                title: "The kernel requested an input",
+                placeHolder: prompt,
+                ignoreFocusOut: true
+            });
+            this.controller.kernelConnection.postMessage({
+                type: (message.type === "request-input" ? "reply-input" : "reply-input-string"),
+                text: input || ""
+            });
+        }
+    }
+}
+
+class ReplyExportNotebookMessageHandler implements MessageHandler {
+    controller: WLNotebookController;
+    constructor(controller: WLNotebookController) {
+        this.controller = controller;
+    }
+    async handleMessage(message: KernelMessage) {
+        this.controller.statusBarExportItem.hide();
+        if ((message.text || "") === "") {
+            // when there is nothing to export, maybe due to pdf export failure
+            vscode.window.showErrorMessage("Failed to export the notebook.");
+            return;
+        }
+        const defaultFormat = message.format === "pdf" ? "pdf" : "nb";
+        const defaultDescription = message.format === "pdf" ? "PDF" : "Wolfram Notebook";
+        const exportData = message.format === "pdf" ? Buffer.from(message.text, "base64") : message.text as string;
+        const path = await vscode.window.showSaveDialog({
+            defaultUri: vscode.Uri.file((message?.path || "").replace(/\.[^/.]+$/, "." + defaultFormat)),
+            filters: {
+                [defaultDescription]: [defaultFormat],
+                "All Files": ["*"]
+            }
+        });
+        if (path) {
+            this.controller.fileHandler.writeAsync(path.fsPath, exportData);
         }
     }
 }
