@@ -20,30 +20,30 @@ export class FileHandler {
 
     async writeAsync(path: string, text: string | Uint8Array) {
         writeFile(path, text, err => {
-            if (err) {
-                vscode.window.showErrorMessage(`Unable to write file ${path} \n${err.message}`,
-                    "Retry", "Save As...", "Dismiss").then(value => {
-                        if (value === "Retry") {
-                            this.writeAsync(path, text);
-                        } else if (value === "Save As...") {
-                            vscode.window.showSaveDialog({
-                                defaultUri: vscode.Uri.file(path),
-                                filters: {
-                                    "All Files": ["*"]
-                                }
-                            }).then(value => {
-                                if (value) {
-                                    this.writeAsync(value.fsPath, text);
-                                }
-                            });
+            if (!err) {
+                return;
+            }
+            vscode.window.showErrorMessage(
+                `Unable to write file ${path} \n${err.message}`,
+                "Retry", "Save As...", "Dismiss"
+            ).then(value => {
+                if (value === "Retry") {
+                    this.writeAsync(path, text);
+                } else if (value === "Save As...") {
+                    vscode.window.showSaveDialog({
+                        defaultUri: vscode.Uri.file(path),
+                        filters: { "All Files": ["*"] }
+                    }).then(value => {
+                        if (value) {
+                            this.writeAsync(value.fsPath, text);
                         }
                     });
-            }
+                }
+            });
         });
     }
 
     readSync(path: string) {
         return readFileSync(path).toString();
     }
-
 }

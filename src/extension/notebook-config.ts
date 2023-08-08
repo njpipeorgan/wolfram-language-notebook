@@ -46,12 +46,17 @@ export class NotebookConfig {
     }
 
     async revealKernelConfigs() {
-        if (this.settingsCommandName) {
-            vscode.commands.executeCommand(
-                this.settingsCommandName,
-                "wolframLanguageNotebook.kernel.configurations"
-            );
-        }
+        return await vscode.commands.executeCommand(
+            this.settingsCommandName,
+            "wolframLanguageNotebook.kernel.configurations"
+        );
+    }
+
+    async revealExtensionConfigs() {
+        return await vscode.commands.executeCommand(
+            "workbench.action.openSettings",
+            "wolframLanguageNotebook"
+        );
     }
 
     getKernelRelatedConfigs() {

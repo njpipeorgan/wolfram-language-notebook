@@ -27,40 +27,40 @@ try {
 
 import { deserializeMarkup } from "./markdown-serializer";
 import { tex2svg } from "./load-mathjax";
-import { ExecutionQueue } from "./execution-queue";
-import { KernelStatusBarItem, ExportNotebookStatusBarItem, WLNotebookOutputPanel } from "./ui-items";
+import { ExecutionQueue, ExecutionItem } from "./execution-queue";
+import { KernelStatusBarItem, ExportNotebookStatusBarItem } from "./ui-items";
+import { WLNotebookOutputPanel } from "./output-panel";
 import { NotebookConfig } from "./notebook-config";
 import { createWLRendererMessageChannel } from "./renderer-message-channel";
 import { FileHandler } from "./file-handler";
+import { Disposable } from "./disposable";
+import { KernelMessage, WLKernelConnection } from "./kernel-connection";
 
-export class WLNotebookController {
+export class WLNotebookController extends Disposable {
     readonly id = "wolfram-language-notebook-controller";
     readonly notebookType = "wolfram-language-notebook";
     readonly label = 'Wolfram Language';
     readonly supportedLanguages = ["wolfram"];
     readonly extensionId = "njpipeorgan.wolfram-language-notebook";
 
-    private readonly extensionPath;
+    readonly extensionPath;
+    readonly isInWorkspace;
+    readonly config;
+
     private readonly thisExtension;
-    private readonly isInWorkspace;
     private readonly controller;
     private readonly statusBarKernelItem = new KernelStatusBarItem(this.supportedLanguages);
     private readonly statusBarExportItem = new ExportNotebookStatusBarItem();
     private readonly messageChannel?: vscode.NotebookRendererMessaging;
-    private readonly config: NotebookConfig;
     private readonly fileHandler = new FileHandler();
+    private readonly kernelConnection = new WLKernelConnection();
 
-    private disposables: any[] = [];
     private selectedNotebooks: Set<vscode.NotebookDocument> = new Set();
-
-    private kernel: any;
-    private socket: any;
-    private restartAfterExitKernel = false;
-    private connectingtoKernel = false;
 
     private executionQueue = new ExecutionQueue();
 
     constructor() {
+        super();
         this.thisExtension = vscode.extensions.getExtension(this.extensionId)!;
         this.extensionPath = this.thisExtension.extensionPath;
         this.isInWorkspace = this.thisExtension.extensionKind === vscode.ExtensionKind.Workspace;
@@ -76,26 +76,31 @@ export class WLNotebookController {
         this.controller.onDidChangeSelectedNotebooks(this.onDidChangeSelectedNotebooks.bind(this));
 
         this.messageChannel = createWLRendererMessageChannel(this.fileHandler);
-        this.disposables.push(this.messageChannel);
+        this.registerDisposable(this.messageChannel);
 
         // when notebook config changes, send a message to the kernel
         this.config.onDidChange((config: NotebookConfig) => {
-            this.postMessageToKernel({ type: "set-config", config: config.getKernelRelatedConfigs() });
+            this.kernelConnection.postMessage({ type: "set-config", config: config.getKernelRelatedConfigs() });
         });
 
-        this.disposables.push(this.statusBarKernelItem, this.statusBarExportItem, this.config);
+        this.registerDisposable(this.statusBarKernelItem, this.statusBarExportItem, this.config);
 
         this.controller.dispose = () => {
+            WLNotebookOutputPanel.print(`The notebook controller is being disposed.`);
             this.quitKernel();
-            WLNotebookOutputPanel.print(`Notebook controller is disposed; there are ${this.disposables.length} disposables.`);
-            this.disposables.forEach(item => {
-                item.dispose();
-            });
+            this.dispose();
         };
+
+        this.kernelConnection.registerMessageHandler(
+            "show-input-name", new ShowInputNameMessageHandler(this).handleMessage);
     }
 
     getController() {
         return this.controller;
+    }
+
+    getExecutionQueue() {
+        return this.executionQueue;
     }
 
     private getRandomPort(portRanges: string) {
@@ -118,14 +123,6 @@ export class WLNotebookController {
                 const [lower, upper] = ranges[i];
                 return Math.min(Math.floor(Math.random() * (upper - lower)) + lower, upper - 1);
             }
-        }
-    }
-
-    private postMessageToKernel(message: any) {
-        if (this.socket !== undefined) {
-            this.socket.send(typeof message === 'string' ? message : JSON.stringify(message));
-        } else {
-            WLNotebookOutputPanel.print("The socket is not available; cannot post the message.");
         }
     }
 
@@ -220,7 +217,7 @@ export class WLNotebookController {
                             placeHolder: prompt,
                             ignoreFocusOut: true
                         });
-                        this.postMessageToKernel({
+                        this.kernelConnection.postMessage({
                             type: "reply-input-string",
                             text: input || ""
                         });
@@ -230,7 +227,7 @@ export class WLNotebookController {
                             placeHolder: prompt,
                             ignoreFocusOut: true
                         });
-                        this.postMessageToKernel({
+                        this.kernelConnection.postMessage({
                             type: (message.type === "request-input" ? "reply-input" : "reply-input-string"),
                             text: input || ""
                         });
@@ -369,7 +366,7 @@ export class WLNotebookController {
 
         if (testInTerminal) {
             const terminal = vscode.window.createTerminal("Wolfram Language");
-            this.disposables.push(terminal);
+            this.registerDisposable(terminal);
             terminal.show();
             terminal.sendText(launchCommand + " " + launchArguments.join(" "));
         } else {
@@ -409,7 +406,7 @@ export class WLNotebookController {
                     this.socket.connect("tcp://" + match[1]);
                     const rand = Math.floor(Math.random() * 1e9).toString();
                     try {
-                        this.postMessageToKernel({ type: "test", text: rand });
+                        this.kernelConnection.postMessage({ type: "test", text: rand });
                         let timer: any;
                         const [received] = await Promise.race([
                             this.socket.receive(),
@@ -425,7 +422,7 @@ export class WLNotebookController {
                             throw new Error("test");
                         }
                         this.evaluateFrontEnd(kernelRenderInitString, false);
-                        this.postMessageToKernel({ type: "set-config", config: this.config.getKernelRelatedConfigs() });
+                        this.kernelConnection.postMessage({ type: "set-config", config: this.config.getKernelRelatedConfigs() });
                         this.connectingtoKernel = false;
                         this.statusBarKernelItem.setConnected(message["version"] || "", kernelIsRemote);
                         try {
@@ -466,8 +463,6 @@ export class WLNotebookController {
                 this.showKernelLaunchFailed(kernelName);
             });
         }
-
-
     };
 
     private launchKernel(kernelName: string | undefined = undefined, testInTerminal: boolean = false) {
@@ -719,7 +714,7 @@ export class WLNotebookController {
             const execution = this.executionQueue.find(id);
             if (execution) {
                 if (execution?.started) {
-                    this.postMessageToKernel({
+                    this.kernelConnection.postMessage({
                         type: "abort-evaluations"
                     });
                 }
@@ -737,7 +732,7 @@ export class WLNotebookController {
                 // the kernel is ready
                 const text = execution.execution.cell.document.getText().replace(/\r\n/g, "\n");
                 if (text) {
-                    this.postMessageToKernel({
+                    this.kernelConnection.postMessage({
                         type: "evaluate-cell",
                         uuid: execution.id,
                         text: text
@@ -842,7 +837,7 @@ export class WLNotebookController {
             }
         } else if (choice.label === "Wolfram Notebook" || choice.label === "PDF") {
             this.statusBarExportItem.show();
-            this.postMessageToKernel({
+            this.kernelConnection.postMessage({
                 type: "request-export-notebook",
                 format: choice.label === "Wolfram Notebook" ? "nb" : "pdf",
                 path: notebook.uri.fsPath,
@@ -853,7 +848,7 @@ export class WLNotebookController {
 
     evaluateFrontEnd(text: string, asynchronous: boolean = false) {
         if (this.kernelConnected()) {
-            this.postMessageToKernel({
+            this.kernelConnection.postMessage({
                 type: "evaluate-front-end",
                 async: asynchronous,
                 text: text
@@ -861,3 +856,26 @@ export class WLNotebookController {
         }
     }
 }
+
+
+interface MessageHandler {
+    controller: WLNotebookController; // Add a reference to the Controller
+    handleMessage(message: KernelMessage): void;
+}
+
+class ShowInputNameMessageHandler implements MessageHandler {
+    controller: WLNotebookController;
+    constructor(controller: WLNotebookController) {
+        this.controller = controller;
+    }
+    handleMessage(message: KernelMessage) {
+        const execution = this.controller.getExecutionQueue().find(message.id);
+        if (execution) {
+            const match = message.name.match(/In\[(\d+)\]/);
+            if (match) {
+                execution.execution.executionOrder = parseInt(match[1]);
+            }
+        }
+    }
+}
+

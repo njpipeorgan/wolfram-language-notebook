@@ -12,4 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+export class Disposable {
+    private disposables: any[] = [];
 
+    constructor() { }
+
+    dispose() {
+        this.disposables.forEach(item => {
+            item.dispose();
+        });
+    }
+
+    registerDisposable(...disposables: any[]) {
+        this.disposables.push(disposables);
+    }
+}

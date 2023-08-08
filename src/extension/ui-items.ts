@@ -13,34 +13,29 @@
 // limitations under the License.
 
 import * as vscode from "vscode";
+import { Disposable } from "./disposable";
 
-export class KernelStatusBarItem {
+export class KernelStatusBarItem extends Disposable {
   private item: vscode.StatusBarItem;
   private readonly baseText = " Wolfram Kernel";
   private kernelIsActive = false;
   private editorIsActive = true;
-  private disposables: any[] = [];
 
   constructor(supportedLanguages: string[]) {
+    super();
     this.item = vscode.window.createStatusBarItem(
       "wolfram-language-notebook-kernel-status", vscode.StatusBarAlignment.Right, 100
     );
-    this.disposables.push(this.item);
+    this.registerDisposable(this.item);
     this.item.name = "Wolfram Kernel";
     this.item.command = "wolframLanguageNotebook.manageKernels";
     this.setDisconnected();
     this.updateVisibility();
 
-    this.disposables.push(vscode.window.onDidChangeActiveTextEditor(e => {
+    this.registerDisposable(vscode.window.onDidChangeActiveTextEditor(e => {
       this.editorIsActive = Boolean(e?.document && supportedLanguages.includes(e.document.languageId));
       this.updateVisibility();
     }));
-  }
-
-  dispose() {
-    this.disposables.forEach(item => {
-      item.dispose();
-    });
   }
 
   private updateVisibility() {
@@ -71,10 +66,11 @@ export class KernelStatusBarItem {
   }
 }
 
-export class ExportNotebookStatusBarItem {
+export class ExportNotebookStatusBarItem extends Disposable {
   private item: vscode.StatusBarItem;
 
   constructor() {
+    super();
     this.item = vscode.window.createStatusBarItem(
       "wolfram-language-export-notebook-status", vscode.StatusBarAlignment.Right, 101
     );
@@ -82,6 +78,7 @@ export class ExportNotebookStatusBarItem {
     this.item.text = "$(loading~spin) Generating Notebook";
     this.item.command = "wolframLanguageNotebook.manageKernels";
     this.item.hide();
+    this.registerDisposable(this.item);
   }
 
   show() {
@@ -92,33 +89,3 @@ export class ExportNotebookStatusBarItem {
     this.item.hide();
   }
 }
-
-export class NotebookOutputPanel {
-  private outputChannel: vscode.OutputChannel;
-
-  constructor(name: string) {
-    this.outputChannel = vscode.window.createOutputChannel(name);
-  }
-
-  print(str: string) {
-    this.outputChannel.appendLine("[" + new Date().toUTCString() + "] " + str);
-  }
-
-  show() {
-    this.outputChannel.show();
-  }
-
-  hide() {
-    this.outputChannel.hide();
-  }
-
-  clear() {
-    this.outputChannel.clear();
-  }
-
-  dispose() {
-    this.outputChannel.dispose();
-  }
-};
-
-export const WLNotebookOutputPanel = new NotebookOutputPanel("Wolfram Language Notebook");

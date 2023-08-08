@@ -15,7 +15,7 @@
 import * as vscode from "vscode";
 import * as uuid from "uuid";
 
-interface ExecutionItem {
+export interface ExecutionItem {
   id: string,
   execution: vscode.NotebookCellExecution,
   started?: boolean,
@@ -93,7 +93,7 @@ export class ExecutionQueue {
 }
 
 export class MessageHandler {
-  handle(message: {[key: string]: any}, queue: ExecutionQueue) {
+  handle(message: { [key: string]: any }, queue: ExecutionQueue) {
     const id = message?.uuid || "";
   }
 }
