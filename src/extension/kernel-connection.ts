@@ -16,7 +16,7 @@
 import * as vscode from "vscode";
 import * as child_process from "child_process";
 import { WLNotebookOutputPanel } from "./output-panel";
-import { FileHandler } from "./file-handler";
+import { fileHandler } from "./file-handler";
 import path = require("path");
 let zmq: typeof import("zeromq") | undefined;
 try {
@@ -49,6 +49,46 @@ class ZeroMQSocket {
             this.socket?.close();
         }
         this.socket = undefined;
+    }
+
+    async connect(address: string, timeout: number) {
+        this.connectionAddress = address;
+        try {
+            if (!zmq) {
+                throw new Error("ZeroMQ library is not available");
+            }
+            this.socket = new zmq.Pair({ linger: 0 });
+            this.socket.connect(address);
+            const rand = Math.floor(Math.random() * 1e9).toString();
+            this.sendJSON({ type: "test", text: rand });
+            let timer: any;
+            const [received] = await Promise.race([
+                this.receiveJSON(),
+                new Promise(res => timer = setTimeout(() => res([new Error("timeout")]), timeout))
+            ]).finally(() => clearTimeout(timer));
+            if (received instanceof Error) {
+                throw received;
+            }
+            WLNotebookOutputPanel.print("Received the following test message from kernel:");
+            WLNotebookOutputPanel.print(`${received.toString()}`);
+            if (received.type !== "test" || received.text !== rand) {
+                throw new Error("The kernel responded with a wrong test message, as above\n" +
+                    "  The expected message should contain: " + JSON.stringify({ type: "test", text: rand }));
+            }
+            return {
+                succeed: true,
+                message: "Successfully connected to the kernel",
+                attributes: {
+                    version: received.version
+                } as any
+            };
+        } catch (error) {
+            return {
+                succeed: false,
+                message: (error instanceof Error) ? error.message : "Unknown error",
+                attributes: {}
+            };
+        }
     }
 
     async sendJSON(messageJSON: { [key: string]: any }) {
@@ -88,10 +128,7 @@ class ZeroMQSocket {
 
 class WLKernel {
     private kernel?: child_process.ChildProcess;
-    private restartAfterExitKernel = false;
-    private connectingtoKernel = false;
     private readonly minimumKernelLaunchTimeout = 1000; // milliseconds
-    private readonly fileHandler = new FileHandler();
 
     private readonly associatedSocket: ZeroMQSocket;
 
@@ -136,9 +173,10 @@ class WLKernel {
                 return Math.min(Math.floor(Math.random() * (upper - lower)) + lower, upper - 1);
             }
         }
+        return ranges[0][0];
     }
 
-    async launch(kernelName: string, kernel: { [key: string]: any }, timeout: number, resourceDirectory: string) {
+    async launch(kernel: { [key: string]: any }, kernelInitString: string, timeout: number) {
         WLNotebookOutputPanel.clear();
         if (!(this.minimumKernelLaunchTimeout < timeout)) {
             timeout = this.minimumKernelLaunchTimeout;
@@ -152,24 +190,9 @@ class WLKernel {
         const sshCredential = String(kernel?.sshCredential || "none");
         const kernelPort = this.getRandomPort(String(kernel?.ports));
 
-        const kernelInitPath = path.join(resourceDirectory, 'init-compressed.txt');
-        const kernelRenderInitPath = path.join(resourceDirectory, 'render-html.wl');
 
-        WLNotebookOutputPanel.print(`Launching kernel ${kernelName}...`);
+        WLNotebookOutputPanel.print(`Launching kernel ...`);
         WLNotebookOutputPanel.print(`    isRemote = ${kernelIsRemote}, port = ${kernelPort}`);
-        WLNotebookOutputPanel.print(`    initPath = ${kernelInitPath}, RenderInitPath = ${kernelRenderInitPath}`);
-
-        let kernelInitString = "";
-        let kernelRenderInitString = "";
-
-        try {
-            kernelInitString = this.fileHandler.readSync(kernelInitPath);
-            kernelRenderInitString = this.fileHandler.readSync(kernelRenderInitPath);
-        } catch (error) {
-            vscode.window.showErrorMessage("Failed to read kernel initialization files.");
-            this.terminate();
-            return;
-        }
 
         const kernelInitCommands = kernelIsRemote ?
             `"zmqPort=${kernelPort};ToExpression[Uncompress[\\"${kernelInitString}\\"]]"` :
@@ -199,62 +222,75 @@ class WLKernel {
         WLNotebookOutputPanel.print(`launchCommand = ${String(launchCommand)}`);
         WLNotebookOutputPanel.print(`launchArguments = ${String(launchArguments).slice(0, 200)} ...`);
 
-        this.kernel = child_process.spawn(launchCommand, launchArguments, { stdio: "pipe" });
-
-        const launchPromise = new Promise<string>((resolve, reject) => {
-            const connectionTimeout = setTimeout(() => {
-                reject(new Error("timeout"));
-            }, timeout);
-
-            let isFirstMessage = true;
-
-            this.kernel?.stdout?.on("data", (data: Buffer) => {
-                const message = data.toString();
-                if (message.startsWith("<ERROR> ")) {
-                    // a fatal error
-                    vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
-                    reject(new Error("stopped"));
-                }
-                WLNotebookOutputPanel.print("Received the following data from kernel:");
-                WLNotebookOutputPanel.print(`${data.toString()}`);
-                if (isFirstMessage) {
-                    if (message.startsWith("<INITIALIZATION STARTS>") || ("<INITIALIZATION STARTS>").startsWith(message)) {
-                        isFirstMessage = false;
-                    } else {
-                        WLNotebookOutputPanel.print("The first message is expected to be <INITIALIZATION STARTS>, instead of the message above.");
-                        if (message.startsWith("Mathematica ") || message.startsWith("Wolfram ")) {
-                            WLNotebookOutputPanel.print("  It seems that a WolframKernel is launched, but wolframscript is required");
-                        }
-                        reject(new Error("wrong-message"));
-                    }
-                }
-                const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
-                if (match) {
-                    clearTimeout(connectionTimeout);
-                    resolve("tcp://" + match[1]);
-                }
-            });
-
-            this.kernel?.on("error", (err: Error) => {
-                WLNotebookOutputPanel.print(`Error occured in spawning the kernel process: \n${err}`);
-                reject(new Error("error"));
-            });
-
-            this.kernel?.stderr?.on("data", (data: Buffer) => {
-                WLNotebookOutputPanel.print("Received the following data from kernel (stderr):");
-                WLNotebookOutputPanel.print(`${data.toString()}`);
-            });
-
-            this.kernel?.on("exit", (code: number, signal: string) => {
-                WLNotebookOutputPanel.print(`Process exited with code ${code} and signal ${signal}.`);
-            });
-        });
-
         try {
-            return await launchPromise;
+            this.kernel = child_process.spawn(launchCommand, launchArguments, { stdio: "pipe" });
+
+            if (this.kernel === undefined) {
+                throw new Error("Failed to spawn kernel process");
+            }
+
+            const launchPromise = new Promise<string>((resolve, reject) => {
+                const connectionTimeout = setTimeout(() => {
+                    reject(new Error("Kernel initialization took too long"));
+                }, timeout);
+
+                let isFirstMessage = true;
+
+                this.kernel?.stdout?.on("data", (data: Buffer) => {
+                    const message = data.toString();
+                    if (message.startsWith("<ERROR>")) {
+                        // a fatal error
+                        vscode.window.showErrorMessage("The kernel has stopped due to the following error: " + message.slice(8));
+                        reject(new Error("The kernel has stopped due to an error in initialization"));
+                    }
+                    WLNotebookOutputPanel.print("Received the following data from kernel:");
+                    WLNotebookOutputPanel.print(`${data.toString()}`);
+                    if (isFirstMessage) {
+                        if (message.startsWith("<INITIALIZATION STARTS>") || ("<INITIALIZATION STARTS>").startsWith(message)) {
+                            isFirstMessage = false;
+                        } else {
+                            WLNotebookOutputPanel.print("The first message is expected to be <INITIALIZATION STARTS>, instead of the message above.");
+                            if (message.startsWith("Mathematica ") || message.startsWith("Wolfram ")) {
+                                WLNotebookOutputPanel.print("  It seems that a WolframKernel is launched, but wolframscript is required");
+                            }
+                            reject(new Error("The kernel did not start the initialization correctly"));
+                        }
+                    }
+                    const match = message.match(/\[address tcp:\/\/(127.0.0.1:[0-9]+)\]/);
+                    if (match) {
+                        clearTimeout(connectionTimeout);
+                        resolve("tcp://" + match[1]);
+                    }
+                });
+
+                this.kernel?.on("error", (err: Error) => {
+                    reject(new Error(`Error occured in spawning the kernel process: ${err}`));
+                });
+
+                this.kernel?.stderr?.on("data", (data: Buffer) => {
+                    WLNotebookOutputPanel.print("Received the following data from kernel (stderr):");
+                    WLNotebookOutputPanel.print(`${data.toString()}`);
+                });
+
+                this.kernel?.on("exit", (code: number, signal: string) => {
+                    WLNotebookOutputPanel.print(`Process exited with code ${code} and signal ${signal}.`);
+                });
+            });
+
+            const connectionAddress = await launchPromise;
+            const result = await this.associatedSocket.connect(connectionAddress, timeout);
+            if (!result.succeed) {
+                throw new Error(result.message);
+            }
+            result.attributes.isRemote = kernelIsRemote;
+            return result;
         } catch (error) {
             this.terminate();
-            return null;
+            return {
+                succeed: false,
+                message: (error instanceof Error) ? error.message : String(error),
+                attributes: {}
+            };
         }
     }
 }
@@ -292,7 +328,11 @@ export class WLKernelConnection {
         return alive;
     }
 
-    private async receiveAndHandleMessages() {
+    async launchKernel(kernel: { [key: string]: any }, kernelInitString: string, timeout: number) {
+        return await this.kernel.launch(kernel, kernelInitString, timeout);
+    }
+
+    async startReceiveAndHandleMessages() {
         while (true) {
             let messageJSON = await this.socket.receiveJSON();
 

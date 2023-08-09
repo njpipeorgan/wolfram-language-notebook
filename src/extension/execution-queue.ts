@@ -92,8 +92,3 @@ export class ExecutionQueue {
   }
 }
 
-export class MessageHandler {
-  handle(message: { [key: string]: any }, queue: ExecutionQueue) {
-    const id = message?.uuid || "";
-  }
-}

@@ -15,7 +15,7 @@
 import * as vscode from "vscode";
 import { readFileSync, writeFile } from "fs";
 
-export class FileHandler {
+class FileHandler {
     constructor() { }
 
     async writeAsync(path: string, text: string | Uint8Array) {
@@ -47,3 +47,5 @@ export class FileHandler {
         return readFileSync(path).toString();
     }
 }
+
+export const fileHandler = new FileHandler();

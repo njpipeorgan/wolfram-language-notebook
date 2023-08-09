@@ -14,9 +14,9 @@
 
 import * as vscode from "vscode";
 const path = require("path");
-import { FileHandler } from "./file-handler";
+import { fileHandler } from "./file-handler";
 
-export function createWLRendererMessageChannel(fileHandler: FileHandler) {
+export function createWLRendererMessageChannel() {
     const messageChannel = vscode.notebooks.createRendererMessaging("wolfram-language-notebook-renderer");
     messageChannel.onDidReceiveMessage(async e => {
         // console.log("Received message from renderer: " + JSON.stringify(e));
