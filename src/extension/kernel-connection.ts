@@ -62,9 +62,9 @@ class ZeroMQSocket {
             const rand = Math.floor(Math.random() * 1e9).toString();
             this.sendJSON({ type: "test", text: rand });
             let timer: any;
-            const [received] = await Promise.race([
+            const received = await Promise.race([
                 this.receiveJSON(),
-                new Promise(res => timer = setTimeout(() => res([new Error("timeout")]), timeout))
+                new Promise(res => timer = setTimeout(() => res(new Error("timeout")), timeout))
             ]).finally(() => clearTimeout(timer));
             if (received instanceof Error) {
                 throw received;
@@ -145,11 +145,11 @@ class WLKernel {
             WLNotebookOutputPanel.print(`Terminating kernel process, pid = ${this?.kernel?.pid}`);
             this.kernel?.kill("SIGKILL");
         }
+        this.kernel = undefined;
         if (this.associatedSocket.alive()) {
             WLNotebookOutputPanel.print("Closing socket");
             this.associatedSocket.close();
         }
-        this.kernel = undefined;
     }
 
     private getRandomPort(portRanges: string) {
@@ -301,9 +301,10 @@ export interface KernelMessage {
 }
 
 export class WLKernelConnection {
-    private socket;
-    private kernel;
+    private readonly socket;
+    private readonly kernel;
     private messageHandlers: { [type: string]: (data: any) => void | Promise<void> } = {};
+    private connecting = false;
 
     constructor() {
         this.socket = new ZeroMQSocket();
@@ -328,8 +329,19 @@ export class WLKernelConnection {
         return alive;
     }
 
-    async launchKernel(kernel: { [key: string]: any }, kernelInitString: string, timeout: number) {
-        return await this.kernel.launch(kernel, kernelInitString, timeout);
+    disconnect() {
+        this.kernel.terminate();
+    }
+
+    async connect(kernel: { [key: string]: any }, kernelInitString: string, timeout: number) {
+        this.connecting = true;
+        const result = await this.kernel.launch(kernel, kernelInitString, timeout);
+        this.connecting = false;
+        return result;
+    }
+
+    isConnecting() {
+        return this.connecting;
     }
 
     async startReceiveAndHandleMessages() {

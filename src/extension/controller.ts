@@ -119,19 +119,17 @@ export class WLNotebookController extends Disposable {
         WLNotebookOutputPanel.show();
         vscode.window.showErrorMessage(
             `Failed to connect to the kernel${kernelName ? " \"" + kernelName + "\"" : ""}.`,
-            "Try Again", "Test in Terminal", "Edit configurations"
+            "Try Again", "Edit configurations"
         ).then(value => {
             if (value === "Try Again") {
                 this.launchKernel(kernelName || undefined);
-            } else if (value === "Test in Terminal") {
-                this.launchKernel(kernelName || undefined, true);
             } else if (value === "Edit configurations") {
                 this.config.revealKernelConfigs();
             }
         });
     }
 
-    private async launchKernelWithName(kernelName: string, kernel: { [key: string]: any }) {
+    private async launchKernelImpl(kernelName: string, kernel: { [key: string]: any }) {
         WLNotebookOutputPanel.clear();
 
         let connectionTimeout = this.config.get("kernel.connectionTimeout") as number;
@@ -152,7 +150,7 @@ export class WLNotebookController extends Disposable {
             return;
         }
 
-        const result = await this.kernelConnection.launchKernel(kernel, resourceDirectory, connectionTimeout);
+        const result = await this.kernelConnection.connect(kernel, kernelInitString, connectionTimeout);
 
         if (!result.succeed) {
             this.showKernelLaunchFailed(kernelName);
@@ -171,16 +169,17 @@ export class WLNotebookController extends Disposable {
 
         this.statusBarKernelItem.setConnected(result.attributes.version, result.attributes.isRemote);
         try {
-            this.handleMessageFromKernel();
+            this.kernelConnection.startReceiveAndHandleMessages();
         } catch { }
         this.checkoutExecutionQueue();
 
     };
 
-    private launchKernel(kernelName: string | undefined = undefined, testInTerminal: boolean = false) {
+    private launchKernel(kernelName?: string) {
         if (this.kernelConnected()) {
             return;
         }
+
         this.quitKernel();
         const kernels = this.config.get("kernel.configurations") as any;
         const numKernels = Object.keys(kernels).length;
@@ -224,12 +223,12 @@ export class WLNotebookController extends Disposable {
                         ).then(() => {
                             // config may not be available yet; add a short delay
                             setTimeout(() => {
-                                this.launchKernel("wolframscript", testInTerminal);
+                                this.launchKernel("wolframscript");
                             }, 200);
                         });
                     }
                     else if (value.label.startsWith("$(debug-start)")) {
-                        this.launchKernel(value.label.substring(15), testInTerminal);
+                        this.launchKernel(value.label.substring(15));
                     } else if (value.label === "$(new-file) Add a new kernel") {
                         this.addNewKernel();
                     } else if (value.label === "$(notebook-edit) Edit kernel configurations in settings") {
@@ -241,7 +240,7 @@ export class WLNotebookController extends Disposable {
             // try to use the specified kernel
             const kernel = kernels[kernelName];
             if (typeof kernel === "object" && "command" in kernel) {
-                this.launchKernelWithName(kernelName, kernel, testInTerminal);
+                this.launchKernelImpl(kernelName, kernel);
             } else {
                 vscode.window.showErrorMessage(
                     typeof kernel !== "object" ?
@@ -257,8 +256,12 @@ export class WLNotebookController extends Disposable {
         }
     };
 
+    private quitKernel() {
+        this.kernelConnection.disconnect();
+    }
+
     private kernelConnected() {
-        return Boolean(this.kernel) && Boolean(this.socket);
+        return this.kernelConnection.alive();
     }
 
     private async addNewKernel() {
@@ -373,7 +376,7 @@ export class WLNotebookController extends Disposable {
                     this.quitKernel();
                 } else if (value?.label === "$(debug-restart) Restart") {
                     this.quitKernel();
-                    this.restartAfterExitKernel = true;
+                    this.launchKernel();
                 } else if (value?.label === "$(notebook-edit) Edit kernel configurations in settings") {
                     this.config.revealKernelConfigs();
                 }
@@ -454,7 +457,7 @@ export class WLNotebookController extends Disposable {
                     this.executionQueue.start(execution.id);
                     this.executionQueue.end(execution.id, false);
                 }
-            } else if (this.connectingtoKernel) {
+            } else if (this.kernelConnection.isConnecting()) {
                 // trying to connect to kernel, then do nothing
             } else {
                 this.launchKernel();
@@ -646,7 +649,7 @@ class EvaluationDoneMessageHandler implements MessageHandler {
         if (execution && !execution.hasOutput) {
             execution.execution.replaceOutput([]);
         }
-        this.controller.executionQueue.end(id, true);
+        this.controller.executionQueue.end(message.id, true);
         this.controller.checkoutExecutionQueue();
     }
 }
