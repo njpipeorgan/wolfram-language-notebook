@@ -13,110 +13,79 @@
 // limitations under the License.
 
 import * as vscode from "vscode";
+import { Disposable } from "./disposable";
 
-export class KernelStatusBarItem {
-  private item: vscode.StatusBarItem;
-  private readonly baseText = " Wolfram Kernel";
-  private kernelIsActive = false;
-  private editorIsActive = true;
-  private disposables: any[] = [];
+export class KernelStatusBarItem extends Disposable {
+	private item: vscode.StatusBarItem;
+	private readonly baseText = " Wolfram Kernel";
+	private kernelIsActive = false;
+	private editorIsActive = true;
 
-  constructor(supportedLanguages: string[]) {
-    this.item = vscode.window.createStatusBarItem(
-      "wolfram-language-notebook-kernel-status", vscode.StatusBarAlignment.Right, 100
-    );
-    this.disposables.push(this.item);
-    this.item.name = "Wolfram Kernel";
-    this.item.command = "wolframLanguageNotebook.manageKernels";
-    this.setDisconnected();
-    this.updateVisibility();
+	constructor(supportedLanguages: string[]) {
+		super();
+		this.item = vscode.window.createStatusBarItem(
+			"wolfram-language-notebook-kernel-status", vscode.StatusBarAlignment.Right, 100
+		);
+		this.registerDisposable(this.item);
+		this.item.name = "Wolfram Kernel";
+		this.item.command = "wolframLanguageNotebook.manageKernels";
+		this.setDisconnected();
+		this.updateVisibility();
 
-    this.disposables.push(vscode.window.onDidChangeActiveTextEditor(e => {
-      this.editorIsActive = Boolean(e?.document && supportedLanguages.includes(e.document.languageId));
-      this.updateVisibility();
-    }));
-  }
+		this.registerDisposable(vscode.window.onDidChangeActiveTextEditor(e => {
+			this.editorIsActive = Boolean(e?.document && supportedLanguages.includes(e.document.languageId));
+			this.updateVisibility();
+		}));
+	}
 
-  dispose() {
-    this.disposables.forEach(item => {
-      item.dispose();
-    });
-  }
+	private updateVisibility() {
+		if (this.kernelIsActive || this.editorIsActive) {
+			this.item.show();
+		} else {
+			this.item.hide();
+		}
+	}
 
-  private updateVisibility() {
-    if (this.kernelIsActive || this.editorIsActive) {
-      this.item.show();
-    } else {
-      this.item.hide();
-    }
-  }
+	private setState(active: boolean, icon: string, tooltip: string) {
+		this.kernelIsActive = active;
+		this.item.text = icon + this.baseText;
+		this.item.tooltip = tooltip;
+		this.updateVisibility();
+	}
 
-  private setState(active: boolean, icon: string, tooltip: string) {
-    this.kernelIsActive = active;
-    this.item.text = icon + this.baseText;
-    this.item.tooltip = tooltip;
-    this.updateVisibility();
-  }
+	setDisconnected() {
+		this.setState(false, "$(close)", "Currently not connected to a kernel");
+	}
 
-  setDisconnected() {
-    this.setState(false, "$(close)", "Currently not connected to a kernel");
-  }
+	setConnecting() {
+		this.setState(true, "$(loading~spin)", "Connecting to the kernel");
+	}
 
-  setConnecting() {
-    this.setState(true, "$(loading~spin)", "Connecting to the kernel");
-  }
-
-  setConnected(tooltip: string = "", isRemote: boolean = false) {
-    this.setState(true, (isRemote ? "$(remote)" : "$(check)"), tooltip || "Kernel connected");
-  }
+	setConnected(tooltip: string = "", isRemote: boolean = false) {
+		this.setState(true, (isRemote ? "$(remote)" : "$(check)"), tooltip || "Kernel connected");
+	}
 }
 
-export class ExportNotebookStatusBarItem {
-  private item: vscode.StatusBarItem;
+export class ExportNotebookStatusBarItem extends Disposable {
+	private item: vscode.StatusBarItem;
 
-  constructor() {
-    this.item = vscode.window.createStatusBarItem(
-      "wolfram-language-export-notebook-status", vscode.StatusBarAlignment.Right, 101
-    );
-    this.item.name = "Export Notebook";
-    this.item.text = "$(loading~spin) Generating Notebook";
-    this.item.command = "wolframLanguageNotebook.manageKernels";
-    this.item.hide();
-  }
+	constructor() {
+		super();
+		this.item = vscode.window.createStatusBarItem(
+			"wolfram-language-export-notebook-status", vscode.StatusBarAlignment.Right, 101
+		);
+		this.item.name = "Export Notebook";
+		this.item.text = "$(loading~spin) Generating Notebook";
+		this.item.command = "wolframLanguageNotebook.manageKernels";
+		this.item.hide();
+		this.registerDisposable(this.item);
+	}
 
-  show() {
-    this.item.show();
-  }
+	show() {
+		this.item.show();
+	}
 
-  hide() {
-    this.item.hide();
-  }
-}
+	hide() {
+		this.item.hide();
+	}
 
-export class NotebookOutputPanel {
-  private outputChannel: vscode.OutputChannel;
-
-  constructor(name: string) {
-    this.outputChannel = vscode.window.createOutputChannel(name);
-  }
-  
-  print(str: string) {
-    this.outputChannel.appendLine(`[${new Date().toUTCString()}] ${str}`);
-  }
-
-  show() {
-    this.outputChannel.show();
-  }
-
-  hide() {
-    this.outputChannel.hide();
-  }
-
-  clear() {
-    this.outputChannel.clear();
-  }
-
-  dispose() {
-    this.outputChannel.dispose();
-  }
-};
