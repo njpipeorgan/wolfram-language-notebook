@@ -18,6 +18,11 @@ import * as child_process from "child_process";
 import { WLNotebookOutputPanel } from "./output-panel";
 import { fileHandler } from "./file-handler";
 import path = require("path");
+import { getZeroMQ } from "./load-zeromq";
+
+const zmq = getZeroMQ();
+
+/*
 let zmq: typeof import("zeromq") | undefined;
 try {
     zmq = require("zeromq") as typeof import("zeromq");
@@ -25,6 +30,7 @@ try {
     vscode.window.showWarningMessage((error as Error).message);
     zmq = undefined;
 }
+*/
 
 class ZeroMQSocket {
     private socket?: import("zeromq").Pair;

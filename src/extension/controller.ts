@@ -18,13 +18,6 @@ const path = require("path");
 
 import * as child_process from "child_process";
 
-let zmq: typeof import("zeromq");
-try {
-    zmq = require("zeromq");
-} catch (error) {
-    vscode.window.showWarningMessage((error as Error).message);
-}
-
 import { deserializeMarkup } from "./markdown-serializer";
 import { tex2svg } from "./load-mathjax";
 import { ExecutionQueue, ExecutionItem } from "./execution-queue";
